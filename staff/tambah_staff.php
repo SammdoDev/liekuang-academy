@@ -1,8 +1,9 @@
 <?php
 include '../koneksi.php';
 
-if (!isset($_GET['divisi_id'])) {
-    die("Divisi tidak ditemukan!");
+// Pastikan parameter `divisi_id` tersedia di URL
+if (!isset($_GET['divisi_id']) || empty($_GET['divisi_id'])) {
+    die("❌ Divisi tidak ditemukan! Periksa parameter URL.");
 }
 
 $divisi_id = intval($_GET['divisi_id']);
@@ -10,16 +11,31 @@ $divisi_id = intval($_GET['divisi_id']);
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $nama = $_POST['nama'];
 
-    $stmt = $conn->prepare("INSERT INTO staff (nama, id_divisi) VALUES (?, ?)");
-    $stmt->bind_param("si", $nama, $divisi_id);
+    // Ambil id_cabang berdasarkan divisi_id
+    $queryCabang = $conn->prepare("SELECT cabang_id FROM divisi WHERE id = ?");
+    $queryCabang->bind_param("i", $divisi_id);
+    $queryCabang->execute();
+    $resultCabang = $queryCabang->get_result();
+    $cabang = $resultCabang->fetch_assoc();
+
+    if (!$cabang) {
+        die("❌ Cabang tidak ditemukan untuk divisi ini.");
+    }
+
+    $id_cabang = $cabang['cabang_id']; // Dapatkan id_cabang dari divisi
+
+    // 🔹 Perbaiki query INSERT agar menyertakan id_cabang
+    $stmt = $conn->prepare("INSERT INTO staff (nama, id_divisi, id_cabang) VALUES (?, ?, ?)");
+    $stmt->bind_param("sii", $nama, $divisi_id, $id_cabang);
 
     if ($stmt->execute()) {
         header("Location: staff.php?divisi_id=$divisi_id");
         exit();
     } else {
-        echo "<p class='text-red-600'>Gagal menambahkan staff.</p>";
+        echo "<p class='text-red-600'>❌ Gagal menambahkan staff.</p>";
     }
 }
+
 ?>
 
 <!DOCTYPE html>

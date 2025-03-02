@@ -1,7 +1,7 @@
 <?php
 $host = "localhost";
 $user = "root";
-$pass = "";
+$pass = "123";
 $db = "liekuang_academy";
 
 // Buat koneksi ke MySQL
