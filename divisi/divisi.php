@@ -7,7 +7,18 @@ if (!isset($_GET['cabang_id'])) {
 
 $cabang_id = intval($_GET['cabang_id']);
 
-// Ambil daftar divisi berdasarkan cabang
+// Query untuk mengambil nama cabang
+$queryCabang = $conn->prepare("SELECT nama_cabang FROM cabang WHERE id_cabang = ?");
+$queryCabang->bind_param("i", $cabang_id);
+$queryCabang->execute();
+$resultCabang = $queryCabang->get_result();
+$cabang = $resultCabang->fetch_assoc();
+
+if (!$cabang) {
+    die("Cabang tidak ditemukan!");
+}
+
+// Query untuk mengambil divisi
 $queryDivisi = $conn->prepare("SELECT * FROM divisi WHERE id_cabang = ?");
 $queryDivisi->bind_param("i", $cabang_id);
 $queryDivisi->execute();
@@ -19,34 +30,55 @@ $resultDivisi = $queryDivisi->get_result();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Divisi Cabang</title>
+    <title>Dashboard Cabang - <?= htmlspecialchars($cabang['nama_cabang']) ?></title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class'
+        }
+    </script>
 </head>
-<body class="bg-gray-100 p-6">
+<body class="bg-gray-100 dark:bg-gray-900 flex min-h-screen">
 
-<div class="max-w-2xl mx-auto bg-white p-6 rounded-lg shadow-md">
-    <h1 class="text-2xl font-bold text-center mb-4">Divisi dalam Cabang</h1>
+    <!-- Sidebar -->
+    <aside class="w-64 bg-white dark:bg-gray-800 shadow-md p-6">
+        <h2 class="text-2xl font-bold text-gray-800 dark:text-white mb-6">Dashboard</h2>
+        
+        <nav class="space-y-4">
+            <a href="../index.php" class="block text-gray-700 dark:text-gray-300 px-4 py-2 hover:bg-blue-500 hover:text-white rounded-lg transition">
+                 Kembali ke Cabang
+            </a>
+            <a href="tambah_divisi.php?cabang_id=<?= $cabang_id ?>" 
+               class="block text-white bg-blue-500 px-4 py-2 rounded-lg shadow-md hover:bg-blue-600 transition">
+                 Tambah Divisi
+            </a>
+        </nav>
+    </aside>
 
-    <a href="tambah_divisi.php?cabang_id=<?= $cabang_id ?>" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mb-4 inline-block">
-        + Tambah Divisi
-    </a>
+    <!-- Konten -->
+    <main class="flex-1 p-6">
+        <h1 class="text-3xl font-bold text-gray-800 dark:text-white mb-6">Divisi - <?= htmlspecialchars($cabang['nama_cabang']) ?></h1>
 
-    <ul class="space-y-2">
-        <?php while ($divisi = $resultDivisi->fetch_assoc()): ?>
-            <li class="p-3 border rounded bg-gray-200 flex justify-between items-center">
-                <span class="font-medium"><?= htmlspecialchars($divisi['nama_divisi']) ?></span>
-                <div class="space-x-2">
-                    <a href="../staff/staff.php?divisi_id=<?= $divisi['id'] ?>" class="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600">Lihat Staff</a>
-                    <a href="edit_divisi.php?id=<?= $divisi['id'] ?>&cabang_id=<?= $cabang_id ?>" class="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600">Edit</a>
-                </div>
-            </li>
-        <?php endwhile; ?>
-    </ul>
-
-    <div class="mt-4">
-        <a href="../index.php" class="text-blue-600 hover:underline">⬅ Kembali ke Cabang</a>
-    </div>
-</div>
+        <?php if ($resultDivisi->num_rows > 0): ?>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <?php while ($divisi = $resultDivisi->fetch_assoc()): ?>
+                    <div class="p-6 bg-white dark:bg-gray-700 rounded-lg shadow-md border dark:border-gray-600">
+                        <h2 class="text-lg font-semibold text-gray-800 dark:text-white mb-2">
+                            <?= htmlspecialchars($divisi['nama_divisi']) ?>
+                        </h2>
+                        <div class="flex space-x-2 px-1 mt-4">
+                            <a href="../staff/staff.php?divisi_id=<?= $divisi['id_divisi'] ?>" 
+                               class="bg-green-500 w-full text-white px-3 py-2 rounded-lg shadow hover:bg-green-600 transition">
+                                 Staff
+                            </a>
+                        </div>
+                    </div>
+                <?php endwhile; ?>
+            </div>
+        <?php else: ?>
+            <p class="text-gray-500 dark:text-gray-300 mt-6">Belum ada divisi dalam cabang ini.</p>
+        <?php endif; ?>
+    </main>
 
 </body>
 </html>

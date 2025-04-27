@@ -1,47 +1,50 @@
 <?php
 include '../koneksi.php';
 
-// Pastikan staff_id ada di POST
-if (!isset($_POST['staff_id']) || empty($_POST['staff_id'])) {
-    die("Staff tidak ditemukan!");
-}
-
-$staff_id = intval($_POST['staff_id']);
-$nilai = $_POST['nilai']; // Nilai yang diinputkan
-
-// Proses penyimpanan nilai skill
-foreach ($nilai as $skill_id => $nilai_skill) {
-    // Pastikan nilai skill hanya 1-4
-    if ($nilai_skill < 1 || $nilai_skill > 4) {
-        continue; // Skip jika nilai tidak valid
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    if (!isset($_POST['staff_id']) || !isset($_POST['divisi_id']) || !isset($_POST['nilai'])) {
+        die("Data tidak lengkap!");
     }
 
-    // Periksa apakah sudah ada nilai skill untuk staff ini
-    $queryCheck = $conn->prepare("SELECT id FROM nilai_skill WHERE staff_id = ? AND skill_id = ?");
-    $queryCheck->bind_param("ii", $staff_id, $skill_id);
-    if (!$queryCheck->execute()) {
-        die("Error executing SELECT query: " . $queryCheck->error);
-    }
-    $resultCheck = $queryCheck->get_result();
+    $staff_id = intval($_POST['staff_id']);
+    $divisi_id = intval($_POST['divisi_id']);
+    $nilai_list = $_POST['nilai'];
 
-    if ($resultCheck->num_rows > 0) {
-        // Jika sudah ada, update nilai
-        $queryUpdate = $conn->prepare("UPDATE nilai_skill SET nilai = ? WHERE staff_id = ? AND skill_id = ?");
-        $queryUpdate->bind_param("iii", $nilai_skill, $staff_id, $skill_id);
-        if (!$queryUpdate->execute()) {
-            die("Error executing UPDATE query: " . $queryUpdate->error);
+    $totalNilai = 0;
+    $jumlahNilai = 0;
+
+    foreach ($nilai_list as $skill_id => $nilai) {
+        $skill_id = intval($skill_id);
+        $nilai = intval($nilai);
+
+        if ($nilai < 1 || $nilai > 4) {
+            die("Nilai harus antara 1-4.");
         }
-    } else {
-        // Jika belum ada, insert nilai
-        $queryInsert = $conn->prepare("INSERT INTO nilai_skill (staff_id, skill_id, nilai) VALUES (?, ?, ?)");
-        $queryInsert->bind_param("iii", $staff_id, $skill_id, $nilai_skill);
-        if (!$queryInsert->execute()) {
-            die("Error executing INSERT query: " . $queryInsert->error);
-        }
-    }
-}
 
-// Redirect kembali ke halaman input nilai
-header("Location: input_nilai_staff.php?staff_id=$staff_id&divisi_id=" . $_GET['divisi_id']);
-exit;
+        // Simpan nilai ke database
+        $query = $conn->prepare("INSERT INTO nilai_skill (staff_id, skill_id, nilai) 
+            VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE nilai = ?");
+        $query->bind_param("iiii", $staff_id, $skill_id, $nilai, $nilai);
+        $query->execute();
+        $query->close();
+
+        // Hitung total nilai dan jumlah nilai untuk rata-rata
+        $totalNilai += $nilai;
+        $jumlahNilai++;
+    }
+
+    // Hitung rata-rata
+    $rataRata = ($jumlahNilai > 0) ? round($totalNilai / $jumlahNilai, 2) : 0;
+
+    // Simpan rata-rata ke database di tabel staff_scores
+    $queryRata = $conn->prepare("INSERT INTO staff_scores (staff_id, rata_rata) 
+        VALUES (?, ?) ON DUPLICATE KEY UPDATE rata_rata = ?");
+    $queryRata->bind_param("idi", $staff_id, $rataRata, $rataRata);
+    $queryRata->execute();
+    $queryRata->close();
+
+    // Redirect kembali ke halaman input dengan rata-rata ditampilkan
+    header("Location: input_nilai_staff.php?staff_id=$staff_id&divisi_id=$divisi_id&rata=$rataRata");
+    exit();
+}
 ?>
