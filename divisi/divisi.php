@@ -30,7 +30,7 @@ $resultDivisi = $queryDivisi->get_result();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Cabang - <?= htmlspecialchars($cabang['nama_cabang']) ?></title>
+    <title>Divisi - <?= htmlspecialchars($cabang['nama_cabang']) ?></title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -68,7 +68,7 @@ $resultDivisi = $queryDivisi->get_result();
                         </h2>
                         <div class="flex space-x-2 px-1 mt-4">
                             <a href="../staff/staff.php?divisi_id=<?= $divisi['id_divisi'] ?>" 
-                               class="bg-green-500 w-full text-white px-3 py-2 rounded-lg shadow hover:bg-green-600 transition">
+                               class="bg-green-500 w-full text-white px-3 py-2 rounded-lg shadow hover:bg-green-600 transition text-center">
                                  Staff
                             </a>
                         </div>
