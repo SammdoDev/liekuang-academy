@@ -121,7 +121,7 @@ $nama_staff = $staff_data['semua_staff'] ?? 'Tidak ada staff';
                         <?php $staff_list = getStaffForSkill($conn, $skill['id_skill'], $divisi_id); ?>
                         <tr class="border-b hover:bg-gray-50">
                             <td class="py-3 px-4">
-                                <a href="detail_skill.php?id=<?= $skill['id_skill'] ?>" class="text-blue-600 hover:underline">
+                                <a href="../skill_matrix/skill_matrix.php?skill_id=<?= $skill['id_skill'] ?>&divisi_id=<?= $divisi_id ?>&cabang_id=<?= $cabang_id ?>" class="text-blue-600 hover:underline">
                                     <?= htmlspecialchars($skill['nama_skill']) ?>
                                 </a>
                             </td>
@@ -144,7 +144,7 @@ $nama_staff = $staff_data['semua_staff'] ?? 'Tidak ada staff';
                                 <a href="edit_skill.php?id=<?= $skill['id_skill'] ?>&divisi_id=<?= $divisi_id ?>" 
                                    class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">Edit</a>
                                 <a href="hapus_skill.php?id=<?= $skill['id_skill'] ?>&divisi_id=<?= $divisi_id ?>" 
-                                   class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600">hapus</a>
+                                   class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600">Hapus</a>
                             </td>
                         </tr>
                     <?php endwhile; ?>
@@ -158,7 +158,7 @@ $nama_staff = $staff_data['semua_staff'] ?? 'Tidak ada staff';
     </div>
 
     <div class="mt-6">
-        <a href="../divisi/divisi.php?cabang_id=<?= $cabang_id ?>" class="text-blue-600 hover:underline"> Kembali ke Divisi</a>
+        <a href="../divisi/divisi.php?cabang_id=<?= $cabang_id ?>" class="text-blue-600 hover:underline">Kembali ke Divisi</a>
     </div>
 </div>
 </body>

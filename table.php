@@ -16,12 +16,6 @@ try {
     }
 
     // Backup existing data from tables if they exist
-    // Check if staff table exists and back it up
-    $result = $conn->query("SHOW TABLES LIKE 'staff'");
-    if ($result->num_rows > 0) {
-        $conn->query("CREATE TABLE IF NOT EXISTS staff_backup AS SELECT * FROM staff");
-    }
-
     // Check if skill_matrix table exists and back it up
     $result = $conn->query("SHOW TABLES LIKE 'skill_matrix'");
     if ($result->num_rows > 0) {
@@ -34,26 +28,59 @@ try {
         $conn->query("CREATE TABLE IF NOT EXISTS skill_backup AS SELECT * FROM skill");
     }
 
-    // Drop tables in correct order (to avoid foreign key constraint issues)
+    // Check if staff table exists and back it up
+    $result = $conn->query("SHOW TABLES LIKE 'staff'");
+    if ($result->num_rows > 0) {
+        $conn->query("CREATE TABLE IF NOT EXISTS staff_backup AS SELECT * FROM staff");
+    }
+
+    // Clear foreign key checks for easier table drops
+    $conn->query("SET FOREIGN_KEY_CHECKS = 0");
+
+    // Drop tables in reverse order of dependency
     $conn->query("DROP TABLE IF EXISTS skill_matrix");
     $conn->query("DROP TABLE IF EXISTS skill");
     $conn->query("DROP TABLE IF EXISTS staff");
     $conn->query("DROP TABLE IF EXISTS divisi");
     $conn->query("DROP TABLE IF EXISTS cabang");
 
-    $sql = "CREATE TABLE cabang (   
-        id_cabang INT AUTO_INCREMENT PRIMARY KEY,
-        nama_cabang VARCHAR(100) NOT NULL UNIQUE
-    )";
-    $conn->query($sql);
+    // Reset foreign key checks
+    $conn->query("SET FOREIGN_KEY_CHECKS = 1");
+
+    $sql = "CREATE TABLE cabang (
+        id_cabang int NOT NULL AUTO_INCREMENT,
+        nama_cabang varchar(100) COLLATE utf8mb4_general_ci NOT NULL,
+        PRIMARY KEY (`id_cabang`)
+    )   ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci";
+
+
+    if (!$conn->query($sql)) {
+        throw new Exception("Gagal membuat tabel cabang: " . $conn->error);
+    }
 
     $sql = "CREATE TABLE divisi (
         id_divisi INT AUTO_INCREMENT PRIMARY KEY,
         nama_divisi VARCHAR(100) NOT NULL,
         id_cabang INT,
         FOREIGN KEY (id_cabang) REFERENCES cabang(id_cabang) ON DELETE CASCADE
-    )";
-    $conn->query($sql);
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;";
+    
+    if (!$conn->query($sql)) {
+        throw new Exception("Gagal membuat tabel divisi: " . $conn->error);
+    }
+
+    // Create staff table BEFORE skill_matrix table
+    $sql = "CREATE TABLE staff (
+        id_staff INT AUTO_INCREMENT PRIMARY KEY,
+        nama_staff VARCHAR(100) NOT NULL,
+        id_divisi INT,
+        id_cabang INT,
+        FOREIGN KEY (id_divisi) REFERENCES divisi(id_divisi) ON DELETE CASCADE,
+        FOREIGN KEY (id_cabang) REFERENCES cabang(id_cabang) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;";
+    if (!$conn->query($sql)) {
+        throw new Exception("Gagal membuat tabel staff: " . $conn->error);
+    }
 
     $sql = "CREATE TABLE skill (
         id_skill INT AUTO_INCREMENT PRIMARY KEY,
@@ -63,14 +90,19 @@ try {
         rata_rata_skill FLOAT DEFAULT 0,
         FOREIGN KEY (id_divisi) REFERENCES divisi(id_divisi) ON DELETE CASCADE,
         FOREIGN KEY (id_cabang) REFERENCES cabang(id_cabang) ON DELETE CASCADE
-    )";
-    $conn->query($sql);
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;";
+    
+    if (!$conn->query($sql)) {
+        throw new Exception("Gagal membuat tabel skill: " . $conn->error);
+    }
 
+    // Now create skill_matrix table AFTER staff table has been created
     $sql = "CREATE TABLE skill_matrix (
         id_skill_matrix INT AUTO_INCREMENT PRIMARY KEY,
         id_skill INT,
         id_divisi INT,
         id_cabang INT,
+        id_staff INT,
         total_look FLOAT DEFAULT 0,
         konsultasi_komunikasi FLOAT DEFAULT 0,
         teknik FLOAT DEFAULT 0,
@@ -81,26 +113,22 @@ try {
         ) STORED,
         FOREIGN KEY (id_skill) REFERENCES skill(id_skill) ON DELETE CASCADE,
         FOREIGN KEY (id_divisi) REFERENCES divisi(id_divisi) ON DELETE CASCADE,
-        FOREIGN KEY (id_cabang) REFERENCES cabang(id_cabang) ON DELETE CASCADE
-    )";
-    $conn->query($sql);
-
-    $sql = "CREATE TABLE staff (
-        id_staff INT AUTO_INCREMENT PRIMARY KEY,
-        nama_staff VARCHAR(100) NOT NULL,
-        id_divisi INT,
-        id_cabang INT,
-        FOREIGN KEY (id_divisi) REFERENCES divisi(id_divisi) ON DELETE CASCADE,
-        FOREIGN KEY (id_cabang) REFERENCES cabang(id_cabang) ON DELETE CASCADE
-    )";
-    $conn->query($sql);
+        FOREIGN KEY (id_cabang) REFERENCES cabang(id_cabang) ON DELETE CASCADE,
+        FOREIGN KEY (id_staff) REFERENCES staff(id_staff) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;";
+    
+    if (!$conn->query($sql)) {
+        throw new Exception("Gagal membuat tabel skill_matrix: " . $conn->error);
+    }
 
     // Daftar cabang - Pastikan urutan cabang tetap konsisten
     $cabang_list = ['Saidan', 'Solo', 'Sora', 'Grand Edge', 'Soal Rambut'];
 
     // Insert cabang berurutan dan dapatkan ID secara eksplisit
     foreach ($cabang_list as $index => $cabang) {
-        $conn->query("INSERT INTO cabang (nama_cabang) VALUES ('$cabang')");
+        $stmt = $conn->prepare("INSERT INTO cabang (nama_cabang) VALUES (?)");
+        $stmt->bind_param("s", $cabang);
+        $stmt->execute();
         $cabang_id = $index + 1; // ID cabang seharusnya berurut 1, 2, 3, ...
 
         // Daftar divisi
@@ -121,44 +149,59 @@ try {
 
         // Insert divisi untuk cabang saat ini
         foreach ($divisi_list as $divisi) {
-            $conn->query("INSERT INTO divisi (nama_divisi, id_cabang) VALUES ('$divisi', $cabang_id)");
+            $stmt = $conn->prepare("INSERT INTO divisi (nama_divisi, id_cabang) VALUES (?, ?)");
+            $stmt->bind_param("si", $divisi, $cabang_id);
+            $stmt->execute();
         }
     }
+
+    // Temporarily disable foreign key checks for data restoration
+    $conn->query("SET FOREIGN_KEY_CHECKS = 0");
 
     // RESTORE DATA SECTION
-    
-    // 1. First restore skill data if backup exists
-    $result = $conn->query("SHOW TABLES LIKE 'skill_backup'");
-    if ($result->num_rows > 0) {
-        // Check if the backup table has any data
-        $checkData = $conn->query("SELECT COUNT(*) as count FROM skill_backup");
-        $row = $checkData->fetch_assoc();
-        
-        if ($row['count'] > 0) {
-            // Insert data from backup to the new skill table
-            $conn->query("INSERT INTO skill (id_skill, nama_skill, id_divisi, id_cabang, rata_rata_skill) 
-                         SELECT id_skill, nama_skill, id_divisi, id_cabang, rata_rata_skill FROM skill_backup");
-        }
-        
-        // Drop the backup table after restoration
-        $conn->query("DROP TABLE IF EXISTS skill_backup");
-    }
 
-    // 2. Then restore staff data if backup exists
+    // 1. First restore staff data if backup exists
     $result = $conn->query("SHOW TABLES LIKE 'staff_backup'");
     if ($result->num_rows > 0) {
         // Check if the backup table has any data
         $checkData = $conn->query("SELECT COUNT(*) as count FROM staff_backup");
         $row = $checkData->fetch_assoc();
-        
+
         if ($row['count'] > 0) {
-            // Insert data from backup to the new staff table
-            $conn->query("INSERT INTO staff (id_staff, nama_staff, id_divisi, id_cabang) 
+            $restoreStaff = $conn->query("INSERT INTO staff (id_staff, nama_staff, id_divisi, id_cabang) 
                          SELECT id_staff, nama_staff, id_divisi, id_cabang FROM staff_backup");
+
+            if ($restoreStaff) {
+            } else {
+                echo "❌ Gagal memulihkan data staff: " . $conn->error . "<br>";
+            }
+        } else {
         }
-        
+
         // Drop the backup table after restoration
         $conn->query("DROP TABLE IF EXISTS staff_backup");
+    }
+
+    // 2. Then restore skill data if backup exists
+    $result = $conn->query("SHOW TABLES LIKE 'skill_backup'");
+    if ($result->num_rows > 0) {
+        // Check if the backup table has any data
+        $checkData = $conn->query("SELECT COUNT(*) as count FROM skill_backup");
+        $row = $checkData->fetch_assoc();
+
+        if ($row['count'] > 0) {
+            $restoreSkill = $conn->query("INSERT INTO skill (id_skill, nama_skill, id_divisi, id_cabang, rata_rata_skill) 
+                         SELECT id_skill, nama_skill, id_divisi, id_cabang, rata_rata_skill FROM skill_backup");
+
+            if ($restoreSkill) {
+            } else {
+                echo "❌ Gagal memulihkan data skill: " . $conn->error . "<br>";
+            }
+        } else {
+        }
+
+        // Drop the backup table after restoration
+        $conn->query("DROP TABLE IF EXISTS skill_backup");
     }
 
     // 3. Finally restore skill_matrix data if backup exists
@@ -167,20 +210,27 @@ try {
         // Check if the backup table has any data
         $checkData = $conn->query("SELECT COUNT(*) as count FROM skill_matrix_backup");
         $row = $checkData->fetch_assoc();
-        
+
         if ($row['count'] > 0) {
-            // Insert data from backup to the new skill_matrix table
-            // Note: We exclude rata_rata as it's a generated column
-            $conn->query("INSERT INTO skill_matrix (id_skill_matrix, id_skill, id_divisi, id_cabang, 
+            $restoreMatrix = $conn->query("INSERT INTO skill_matrix (id_skill_matrix, id_skill, id_divisi, id_cabang, id_staff,
                             total_look, konsultasi_komunikasi, teknik, kerapian_kebersihan, produk_knowledge) 
-                         SELECT id_skill_matrix, id_skill, id_divisi, id_cabang, 
+                         SELECT id_skill_matrix, id_skill, id_divisi, id_cabang, id_staff,
                             total_look, konsultasi_komunikasi, teknik, kerapian_kebersihan, produk_knowledge 
                          FROM skill_matrix_backup");
+
+            if ($restoreMatrix) {
+            } else {
+                echo "❌ Gagal memulihkan data skill_matrix: " . $conn->error . "<br>";
+            }
+        } else {
         }
-        
+
         // Drop the backup table after restoration
         $conn->query("DROP TABLE IF EXISTS skill_matrix_backup");
     }
+
+    // Re-enable foreign key checks
+    $conn->query("SET FOREIGN_KEY_CHECKS = 1");
 
 
 } catch (Exception $e) {
