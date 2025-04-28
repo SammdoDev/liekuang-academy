@@ -15,11 +15,29 @@ try {
         throw new Exception("Gagal memilih database: " . $conn->error);
     }
 
+    // Backup existing data from tables if they exist
+    // Check if staff table exists and back it up
+    $result = $conn->query("SHOW TABLES LIKE 'staff'");
+    if ($result->num_rows > 0) {
+        $conn->query("CREATE TABLE IF NOT EXISTS staff_backup AS SELECT * FROM staff");
+    }
+
+    // Check if skill_matrix table exists and back it up
+    $result = $conn->query("SHOW TABLES LIKE 'skill_matrix'");
+    if ($result->num_rows > 0) {
+        $conn->query("CREATE TABLE IF NOT EXISTS skill_matrix_backup AS SELECT * FROM skill_matrix");
+    }
+
+    // Check if skill table exists and back it up
+    $result = $conn->query("SHOW TABLES LIKE 'skill'");
+    if ($result->num_rows > 0) {
+        $conn->query("CREATE TABLE IF NOT EXISTS skill_backup AS SELECT * FROM skill");
+    }
+
     // Drop tables in correct order (to avoid foreign key constraint issues)
     $conn->query("DROP TABLE IF EXISTS skill_matrix");
     $conn->query("DROP TABLE IF EXISTS skill");
-    $conn->query("DROP TABLE IF EXISTS staff"); // Drop old staff table if exists
-    $conn->query("DROP TABLE IF EXISTS staff_backup"); // Drop old staff_backup table if exists
+    $conn->query("DROP TABLE IF EXISTS staff");
     $conn->query("DROP TABLE IF EXISTS divisi");
     $conn->query("DROP TABLE IF EXISTS cabang");
 
@@ -105,6 +123,63 @@ try {
         foreach ($divisi_list as $divisi) {
             $conn->query("INSERT INTO divisi (nama_divisi, id_cabang) VALUES ('$divisi', $cabang_id)");
         }
+    }
+
+    // RESTORE DATA SECTION
+    
+    // 1. First restore skill data if backup exists
+    $result = $conn->query("SHOW TABLES LIKE 'skill_backup'");
+    if ($result->num_rows > 0) {
+        // Check if the backup table has any data
+        $checkData = $conn->query("SELECT COUNT(*) as count FROM skill_backup");
+        $row = $checkData->fetch_assoc();
+        
+        if ($row['count'] > 0) {
+            // Insert data from backup to the new skill table
+            $conn->query("INSERT INTO skill (id_skill, nama_skill, id_divisi, id_cabang, rata_rata_skill) 
+                         SELECT id_skill, nama_skill, id_divisi, id_cabang, rata_rata_skill FROM skill_backup");
+        }
+        
+        // Drop the backup table after restoration
+        $conn->query("DROP TABLE IF EXISTS skill_backup");
+    }
+
+    // 2. Then restore staff data if backup exists
+    $result = $conn->query("SHOW TABLES LIKE 'staff_backup'");
+    if ($result->num_rows > 0) {
+        // Check if the backup table has any data
+        $checkData = $conn->query("SELECT COUNT(*) as count FROM staff_backup");
+        $row = $checkData->fetch_assoc();
+        
+        if ($row['count'] > 0) {
+            // Insert data from backup to the new staff table
+            $conn->query("INSERT INTO staff (id_staff, nama_staff, id_divisi, id_cabang) 
+                         SELECT id_staff, nama_staff, id_divisi, id_cabang FROM staff_backup");
+        }
+        
+        // Drop the backup table after restoration
+        $conn->query("DROP TABLE IF EXISTS staff_backup");
+    }
+
+    // 3. Finally restore skill_matrix data if backup exists
+    $result = $conn->query("SHOW TABLES LIKE 'skill_matrix_backup'");
+    if ($result->num_rows > 0) {
+        // Check if the backup table has any data
+        $checkData = $conn->query("SELECT COUNT(*) as count FROM skill_matrix_backup");
+        $row = $checkData->fetch_assoc();
+        
+        if ($row['count'] > 0) {
+            // Insert data from backup to the new skill_matrix table
+            // Note: We exclude rata_rata as it's a generated column
+            $conn->query("INSERT INTO skill_matrix (id_skill_matrix, id_skill, id_divisi, id_cabang, 
+                            total_look, konsultasi_komunikasi, teknik, kerapian_kebersihan, produk_knowledge) 
+                         SELECT id_skill_matrix, id_skill, id_divisi, id_cabang, 
+                            total_look, konsultasi_komunikasi, teknik, kerapian_kebersihan, produk_knowledge 
+                         FROM skill_matrix_backup");
+        }
+        
+        // Drop the backup table after restoration
+        $conn->query("DROP TABLE IF EXISTS skill_matrix_backup");
     }
 
 

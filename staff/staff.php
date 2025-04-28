@@ -32,14 +32,63 @@ $nama_divisi = $divisiData['nama_divisi'];
 $nama_cabang = $divisiData['nama_cabang'];
 $cabang_id = $divisiData['id_cabang'];
 
-// Get staff count first
+// Proses penambahan staff jika ada data POST yang dikirim
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['tambah_staff']) && !empty($_POST['nama_staff'])) {
+    $nama_staff = trim($_POST['nama_staff']);
+    
+    // Cek apakah staff dengan nama yang sama sudah ada di divisi ini
+    $cekStaff = $conn->prepare("SELECT id_staff FROM staff WHERE nama_staff = ? AND id_divisi = ?");
+    $cekStaff->bind_param("si", $nama_staff, $divisi_id);
+    $cekStaff->execute();
+    $cekResult = $cekStaff->get_result();
+    
+    if ($cekResult->num_rows === 0) {
+        // Staff belum ada, tambahkan
+        $tambahStaff = $conn->prepare("INSERT INTO staff (nama_staff, id_divisi, id_cabang) VALUES (?, ?, ?)");
+        $tambahStaff->bind_param("sii", $nama_staff, $divisi_id, $cabang_id);
+        
+        if ($tambahStaff->execute()) {
+            // Redirect ke halaman yang sama tanpa POST data (untuk mencegah re-submit saat refresh)
+            header("Location: " . $_SERVER['PHP_SELF'] . "?divisi_id=" . $divisi_id . "&added=success&staff_name=" . urlencode($nama_staff));
+            exit;
+        } else {
+            $error_message = "Gagal menambahkan staff: " . $conn->error;
+        }
+    } else {
+        $error_message = "Staff dengan nama tersebut sudah ada di divisi ini.";
+    }
+}
+
+// Get staff count
 $countQuery = $conn->prepare("SELECT COUNT(*) as total FROM staff WHERE id_divisi = ?");
 $countQuery->bind_param("i", $divisi_id);
 $countQuery->execute();
 $countResult = $countQuery->get_result()->fetch_assoc();
 $staffCount = $countResult['total'];
 
-// Ambil daftar staff
+// Ambil daftar staff dengan caching
+$cacheKey = "staff_divisi_" . $divisi_id;
+$staffList = [];
+
+// Fungsi untuk mendapatkan data staff dari database
+function getStaffFromDatabase($conn, $divisi_id) {
+    $staffQuery = $conn->prepare("SELECT id_staff, nama_staff FROM staff WHERE id_divisi = ? ORDER BY nama_staff");
+    $staffQuery->bind_param("i", $divisi_id);
+    $staffQuery->execute();
+    $staffResult = $staffQuery->get_result();
+    
+    $staffList = [];
+    while ($staff = $staffResult->fetch_assoc()) {
+        $staffList[] = $staff;
+    }
+    
+    return $staffList;
+}
+
+// Dapatkan data staff dari database
+$staffList = getStaffFromDatabase($conn, $divisi_id);
+
+// Ambil data staff untuk tabel
 $staffQuery = $conn->prepare("SELECT id_staff, nama_staff FROM staff WHERE id_divisi = ? ORDER BY nama_staff");
 $staffQuery->bind_param("i", $divisi_id);
 $staffQuery->execute();
@@ -68,11 +117,25 @@ $staffResult = $staffQuery->get_result();
                 </a>
             </div>
             
-            <!-- Tombol Tambah Staff -->
-            <a href="tambah_staff.php?divisi_id=<?= $divisi_id ?>" 
-               class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 inline-block">
-                 Tambah Staff Baru
-            </a>
+            <!-- Form Tambah Staff (Inline) -->
+            <div class="mb-4 p-4 bg-gray-50 rounded-lg">
+                <h3 class="text-lg font-medium mb-3">Tambah Staff Baru</h3>
+                <?php if (isset($error_message)): ?>
+                    <div class="bg-red-100 p-3 rounded-lg mb-3">
+                        <p class="text-red-800"><?= htmlspecialchars($error_message) ?></p>
+                    </div>
+                <?php endif; ?>
+                
+                <form method="POST" action="<?= $_SERVER['PHP_SELF'] ?>?divisi_id=<?= $divisi_id ?>" class="flex items-center">
+                    <input type="text" name="nama_staff" placeholder="Nama Staff" required
+                           class="px-4 py-2 border rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500 flex-grow">
+                    <button type="submit" name="tambah_staff" 
+                            class="bg-blue-500 text-white px-4 py-2 rounded-r-md hover:bg-blue-600">
+                        Tambah
+                    </button>
+                </form>
+            </div>
+            
         </div>
         
         <!-- Pesan Notifikasi -->
@@ -88,6 +151,14 @@ $staffResult = $staffQuery->get_result();
             <div class="bg-green-100 p-4 rounded-lg mb-6">
                 <p class="text-green-800">
                      Data staff <?= htmlspecialchars(urldecode($_GET['staff_name'] ?? 'tersebut')) ?> berhasil diperbarui
+                </p>
+            </div>
+        <?php endif; ?>
+        
+        <?php if (isset($_GET['added']) && $_GET['added'] == 'success'): ?>
+            <div class="bg-green-100 p-4 rounded-lg mb-6">
+                <p class="text-green-800">
+                     Staff <?= htmlspecialchars(urldecode($_GET['staff_name'] ?? 'baru')) ?> berhasil ditambahkan
                 </p>
             </div>
         <?php endif; ?>
@@ -124,7 +195,7 @@ $staffResult = $staffQuery->get_result();
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <a href="input_skill_staff.php?id_staff=<?= $staff['id_staff'] ?>&divisi_id=<?= $divisi_id ?>" 
+                                    <a href="../skill/skill.php?id_staff=<?= $staff['id_staff'] ?>&divisi_id=<?= $divisi_id ?>" 
                                        class="text-indigo-600 hover:text-indigo-900 mr-3">
                                          input skill
                                     </a>
@@ -132,7 +203,8 @@ $staffResult = $staffQuery->get_result();
                                        class="text-indigo-600 hover:text-indigo-900 mr-3">
                                          Edit
                                     </a>
-                                    <a href="hapus_staff.php?id_staff=<?= $staff['id_staff'] ?>&divisi_id=<?= $divisi_id ?>" 
+                                    <a href="hapus_staff.php?id_staff=<?= $staff['id_staff'] ?>&divisi_id=<?= $divisi_id ?>&confirm=true" 
+                                       onclick="return confirm('Apakah Anda yakin ingin menghapus staff ini?');"
                                        class="text-red-600 hover:text-red-900">
                                          Hapus
                                     </a>
@@ -144,11 +216,6 @@ $staffResult = $staffQuery->get_result();
             <?php else: ?>
                 <div class="p-6 text-center">
                     <p class="text-gray-500">Belum ada staff untuk divisi ini.</p>
-                    <p class="mt-2">
-                        <a href="tambah_staff.php?divisi_id=<?= $divisi_id ?>" class="text-blue-600 hover:underline">
-                            Tambah staff sekarang
-                        </a>
-                    </p>
                 </div>
             <?php endif; ?>
         </div>
@@ -174,5 +241,23 @@ $staffResult = $staffQuery->get_result();
             </div>
         </div>
     </div>
+    
+    <!-- Script untuk mempertahankan state -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Mencegah resubmit form saat refresh
+        if (window.history.replaceState) {
+            window.history.replaceState(null, null, window.location.href);
+        }
+        
+        // Otomatis hilangkan notifikasi setelah 5 detik
+        setTimeout(function() {
+            const notifications = document.querySelectorAll('.bg-green-100, .bg-red-100');
+            notifications.forEach(function(notification) {
+                notification.style.display = 'none';
+            });
+        }, 5000);
+    });
+    </script>
 </body>
 </html>

@@ -10,7 +10,7 @@ $divisi_id = intval($_GET['divisi_id']);
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $nama_skill = $_POST['nama_skill'];
 
-    $stmt = $conn->prepare("INSERT INTO skills (nama_skill, id_divisi) VALUES (?, ?)");
+    $stmt = $conn->prepare("INSERT INTO skill (nama_skill, id_divisi) VALUES (?, ?)");
     $stmt->bind_param("si", $nama_skill, $divisi_id);
 
     if ($stmt->execute()) {
