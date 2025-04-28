@@ -8,7 +8,7 @@ if (!isset($_GET['id']) || !isset($_GET['divisi_id'])) {
 $id = intval($_GET['id']);
 $divisi_id = intval($_GET['divisi_id']);
 
-$stmt = $conn->prepare("DELETE FROM skills WHERE id = ?");
+$stmt = $conn->prepare("DELETE FROM skill WHERE id_skill = ?");
 $stmt->bind_param("i", $id);
 
 if ($stmt->execute()) {

@@ -143,6 +143,8 @@ $nama_staff = $staff_data['semua_staff'] ?? 'Tidak ada staff';
                             <td class="py-3 px-4 text-right">
                                 <a href="edit_skill.php?id=<?= $skill['id_skill'] ?>&divisi_id=<?= $divisi_id ?>" 
                                    class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">Edit</a>
+                                <a href="hapus_skill.php?id=<?= $skill['id_skill'] ?>&divisi_id=<?= $divisi_id ?>" 
+                                   class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600">hapus</a>
                             </td>
                         </tr>
                     <?php endwhile; ?>
