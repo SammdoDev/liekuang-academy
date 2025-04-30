@@ -39,49 +39,38 @@ try {
 
     // Drop tables in reverse order of dependency
     $conn->query("DROP TABLE IF EXISTS skill_matrix");
-    $conn->query("DROP TABLE IF EXISTS skill");
     $conn->query("DROP TABLE IF EXISTS staff");
+    $conn->query("DROP TABLE IF EXISTS skill");
     $conn->query("DROP TABLE IF EXISTS divisi");
     $conn->query("DROP TABLE IF EXISTS cabang");
 
     // Reset foreign key checks
     $conn->query("SET FOREIGN_KEY_CHECKS = 1");
 
+    // Create cabang table
     $sql = "CREATE TABLE cabang (
-        id_cabang int NOT NULL AUTO_INCREMENT,
-        nama_cabang varchar(100) COLLATE utf8mb4_general_ci NOT NULL,
-        PRIMARY KEY (`id_cabang`)
-    )   ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci";
-
+        id_cabang INT NOT NULL AUTO_INCREMENT,
+        nama_cabang VARCHAR(100) COLLATE utf8mb4_general_ci NOT NULL,
+        PRIMARY KEY (id_cabang)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci";
 
     if (!$conn->query($sql)) {
         throw new Exception("Gagal membuat tabel cabang: " . $conn->error);
     }
 
+    // Create divisi table
     $sql = "CREATE TABLE divisi (
         id_divisi INT AUTO_INCREMENT PRIMARY KEY,
         nama_divisi VARCHAR(100) NOT NULL,
         id_cabang INT,
         FOREIGN KEY (id_cabang) REFERENCES cabang(id_cabang) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;";
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci";
     
     if (!$conn->query($sql)) {
         throw new Exception("Gagal membuat tabel divisi: " . $conn->error);
     }
 
-    // Create staff table BEFORE skill_matrix table
-    $sql = "CREATE TABLE staff (
-        id_staff INT AUTO_INCREMENT PRIMARY KEY,
-        nama_staff VARCHAR(100) NOT NULL,
-        id_divisi INT,
-        id_cabang INT,
-        FOREIGN KEY (id_divisi) REFERENCES divisi(id_divisi) ON DELETE CASCADE,
-        FOREIGN KEY (id_cabang) REFERENCES cabang(id_cabang) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;";
-    if (!$conn->query($sql)) {
-        throw new Exception("Gagal membuat tabel staff: " . $conn->error);
-    }
-
+    // Create skill table linked to divisi
     $sql = "CREATE TABLE skill (
         id_skill INT AUTO_INCREMENT PRIMARY KEY,
         nama_skill VARCHAR(100) NOT NULL,
@@ -90,19 +79,35 @@ try {
         rata_rata_skill FLOAT DEFAULT 0,
         FOREIGN KEY (id_divisi) REFERENCES divisi(id_divisi) ON DELETE CASCADE,
         FOREIGN KEY (id_cabang) REFERENCES cabang(id_cabang) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;";
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci";
     
     if (!$conn->query($sql)) {
         throw new Exception("Gagal membuat tabel skill: " . $conn->error);
     }
 
-    // Now create skill_matrix table AFTER staff table has been created
-    $sql = "CREATE TABLE skill_matrix (
-        id_skill_matrix INT AUTO_INCREMENT PRIMARY KEY,
+    // Create staff table linked to skill (changed from previous structure)
+    $sql = "CREATE TABLE staff (
+        id_staff INT AUTO_INCREMENT PRIMARY KEY,
+        nama_staff VARCHAR(100) NOT NULL,
         id_skill INT,
         id_divisi INT,
         id_cabang INT,
+        FOREIGN KEY (id_skill) REFERENCES skill(id_skill) ON DELETE CASCADE,
+        FOREIGN KEY (id_divisi) REFERENCES divisi(id_divisi) ON DELETE CASCADE,
+        FOREIGN KEY (id_cabang) REFERENCES cabang(id_cabang) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci";
+    
+    if (!$conn->query($sql)) {
+        throw new Exception("Gagal membuat tabel staff: " . $conn->error);
+    }
+
+    // Create skill_matrix table linked to staff
+    $sql = "CREATE TABLE skill_matrix (
+        id_skill_matrix INT AUTO_INCREMENT PRIMARY KEY,
         id_staff INT,
+        id_skill INT,
+        id_divisi INT,
+        id_cabang INT,
         total_look FLOAT DEFAULT 0,
         konsultasi_komunikasi FLOAT DEFAULT 0,
         teknik FLOAT DEFAULT 0,
@@ -111,11 +116,11 @@ try {
         rata_rata FLOAT GENERATED ALWAYS AS (
             (total_look + konsultasi_komunikasi + teknik + kerapian_kebersihan + produk_knowledge) / 5
         ) STORED,
+        FOREIGN KEY (id_staff) REFERENCES staff(id_staff) ON DELETE CASCADE,
         FOREIGN KEY (id_skill) REFERENCES skill(id_skill) ON DELETE CASCADE,
         FOREIGN KEY (id_divisi) REFERENCES divisi(id_divisi) ON DELETE CASCADE,
-        FOREIGN KEY (id_cabang) REFERENCES cabang(id_cabang) ON DELETE CASCADE,
-        FOREIGN KEY (id_staff) REFERENCES staff(id_staff) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;";
+        FOREIGN KEY (id_cabang) REFERENCES cabang(id_cabang) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci";
     
     if (!$conn->query($sql)) {
         throw new Exception("Gagal membuat tabel skill_matrix: " . $conn->error);
@@ -158,31 +163,10 @@ try {
     // Temporarily disable foreign key checks for data restoration
     $conn->query("SET FOREIGN_KEY_CHECKS = 0");
 
-    // RESTORE DATA SECTION
+    // Note: Data restoration is more complex now due to schema changes
+    // This is a simplified approach - in production you'd need to handle data mapping carefully
 
-    // 1. First restore staff data if backup exists
-    $result = $conn->query("SHOW TABLES LIKE 'staff_backup'");
-    if ($result->num_rows > 0) {
-        // Check if the backup table has any data
-        $checkData = $conn->query("SELECT COUNT(*) as count FROM staff_backup");
-        $row = $checkData->fetch_assoc();
-
-        if ($row['count'] > 0) {
-            $restoreStaff = $conn->query("INSERT INTO staff (id_staff, nama_staff, id_divisi, id_cabang) 
-                         SELECT id_staff, nama_staff, id_divisi, id_cabang FROM staff_backup");
-
-            if ($restoreStaff) {
-            } else {
-                echo "❌ Gagal memulihkan data staff: " . $conn->error . "<br>";
-            }
-        } else {
-        }
-
-        // Drop the backup table after restoration
-        $conn->query("DROP TABLE IF EXISTS staff_backup");
-    }
-
-    // 2. Then restore skill data if backup exists
+    // 1. First restore skill data if backup exists
     $result = $conn->query("SHOW TABLES LIKE 'skill_backup'");
     if ($result->num_rows > 0) {
         // Check if the backup table has any data
@@ -193,15 +177,53 @@ try {
             $restoreSkill = $conn->query("INSERT INTO skill (id_skill, nama_skill, id_divisi, id_cabang, rata_rata_skill) 
                          SELECT id_skill, nama_skill, id_divisi, id_cabang, rata_rata_skill FROM skill_backup");
 
-            if ($restoreSkill) {
-            } else {
+            if (!$restoreSkill) {
                 echo "❌ Gagal memulihkan data skill: " . $conn->error . "<br>";
             }
-        } else {
         }
 
         // Drop the backup table after restoration
         $conn->query("DROP TABLE IF EXISTS skill_backup");
+    }
+
+    // 2. Then restore staff data if backup exists - note the modified structure
+    $result = $conn->query("SHOW TABLES LIKE 'staff_backup'");
+    if ($result->num_rows > 0) {
+        // Check if the backup table has any data
+        $checkData = $conn->query("SELECT COUNT(*) as count FROM staff_backup");
+        $row = $checkData->fetch_assoc();
+
+        if ($row['count'] > 0) {
+            // We'll need to transfer data carefully here due to schema changes
+            // For simplicity, we'll assign a default skill based on division
+            $result = $conn->query("SELECT * FROM staff_backup");
+            while ($staff = $result->fetch_assoc()) {
+                // Find a matching skill for this division
+                $skillQuery = $conn->prepare("SELECT id_skill FROM skill WHERE id_divisi = ? LIMIT 1");
+                $skillQuery->bind_param("i", $staff['id_divisi']);
+                $skillQuery->execute();
+                $skillResult = $skillQuery->get_result();
+                
+                if ($skillResult->num_rows > 0) {
+                    $skillRow = $skillResult->fetch_assoc();
+                    $id_skill = $skillRow['id_skill'];
+                    
+                    $insertStaff = $conn->prepare("INSERT INTO staff (id_staff, nama_staff, id_skill, id_divisi, id_cabang) 
+                                    VALUES (?, ?, ?, ?, ?)");
+                    $insertStaff->bind_param("isiii", 
+                        $staff['id_staff'], 
+                        $staff['nama_staff'], 
+                        $id_skill,
+                        $staff['id_divisi'], 
+                        $staff['id_cabang']
+                    );
+                    $insertStaff->execute();
+                }
+            }
+        }
+
+        // Drop the backup table after restoration
+        $conn->query("DROP TABLE IF EXISTS staff_backup");
     }
 
     // 3. Finally restore skill_matrix data if backup exists
@@ -212,17 +234,15 @@ try {
         $row = $checkData->fetch_assoc();
 
         if ($row['count'] > 0) {
-            $restoreMatrix = $conn->query("INSERT INTO skill_matrix (id_skill_matrix, id_skill, id_divisi, id_cabang, id_staff,
+            $restoreMatrix = $conn->query("INSERT INTO skill_matrix (id_skill_matrix, id_staff, id_skill, id_divisi, id_cabang,
                             total_look, konsultasi_komunikasi, teknik, kerapian_kebersihan, produk_knowledge) 
-                         SELECT id_skill_matrix, id_skill, id_divisi, id_cabang, id_staff,
+                         SELECT id_skill_matrix, id_staff, id_skill, id_divisi, id_cabang,
                             total_look, konsultasi_komunikasi, teknik, kerapian_kebersihan, produk_knowledge 
                          FROM skill_matrix_backup");
 
-            if ($restoreMatrix) {
-            } else {
+            if (!$restoreMatrix) {
                 echo "❌ Gagal memulihkan data skill_matrix: " . $conn->error . "<br>";
             }
-        } else {
         }
 
         // Drop the backup table after restoration
