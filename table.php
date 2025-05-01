@@ -15,51 +15,27 @@ try {
         throw new Exception("Gagal memilih database: " . $conn->error);
     }
 
-    // Backup existing data from tables if they exist
-    // Check if skill_matrix table exists and back it up
-    $result = $conn->query("SHOW TABLES LIKE 'skill_matrix'");
-    if ($result->num_rows > 0) {
-        $conn->query("CREATE TABLE IF NOT EXISTS skill_matrix_backup AS SELECT * FROM skill_matrix");
-    }
-
-    // Check if skill table exists and back it up
-    $result = $conn->query("SHOW TABLES LIKE 'skill'");
-    if ($result->num_rows > 0) {
-        $conn->query("CREATE TABLE IF NOT EXISTS skill_backup AS SELECT * FROM skill");
-    }
-
-    // Check if staff table exists and back it up
-    $result = $conn->query("SHOW TABLES LIKE 'staff'");
-    if ($result->num_rows > 0) {
-        $conn->query("CREATE TABLE IF NOT EXISTS staff_backup AS SELECT * FROM staff");
-    }
-
     // Clear foreign key checks for easier table drops
     $conn->query("SET FOREIGN_KEY_CHECKS = 0");
-
-    // Drop tables in reverse order of dependency
-    $conn->query("DROP TABLE IF EXISTS skill_matrix");
-    $conn->query("DROP TABLE IF EXISTS staff");
-    $conn->query("DROP TABLE IF EXISTS skill");
-    $conn->query("DROP TABLE IF EXISTS divisi");
-    $conn->query("DROP TABLE IF EXISTS cabang");
 
     // Reset foreign key checks
     $conn->query("SET FOREIGN_KEY_CHECKS = 1");
 
     // Create cabang table
-    $sql = "CREATE TABLE cabang (
+    $sql = "CREATE TABLE IF NOT EXISTS cabang (
         id_cabang INT NOT NULL AUTO_INCREMENT,
         nama_cabang VARCHAR(100) COLLATE utf8mb4_general_ci NOT NULL,
+        password VARCHAR(255) DEFAULT NULL,
         PRIMARY KEY (id_cabang)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci";
+    
 
     if (!$conn->query($sql)) {
         throw new Exception("Gagal membuat tabel cabang: " . $conn->error);
     }
 
     // Create divisi table
-    $sql = "CREATE TABLE divisi (
+    $sql = "CREATE TABLE IF NOT EXISTS divisi (
         id_divisi INT AUTO_INCREMENT PRIMARY KEY,
         nama_divisi VARCHAR(100) NOT NULL,
         id_cabang INT,
@@ -71,7 +47,7 @@ try {
     }
 
     // Create skill table linked to divisi
-    $sql = "CREATE TABLE skill (
+    $sql = "CREATE TABLE IF NOT EXISTS skill (
         id_skill INT AUTO_INCREMENT PRIMARY KEY,
         nama_skill VARCHAR(100) NOT NULL,
         id_divisi INT,
@@ -85,8 +61,8 @@ try {
         throw new Exception("Gagal membuat tabel skill: " . $conn->error);
     }
 
-    // Create staff table linked to skill (changed from previous structure)
-    $sql = "CREATE TABLE staff (
+    // Create staff table linked to skill
+    $sql = "CREATE TABLE IF NOT EXISTS staff (
         id_staff INT AUTO_INCREMENT PRIMARY KEY,
         nama_staff VARCHAR(100) NOT NULL,
         id_skill INT,
@@ -102,7 +78,7 @@ try {
     }
 
     // Create skill_matrix table linked to staff
-    $sql = "CREATE TABLE skill_matrix (
+    $sql = "CREATE TABLE IF NOT EXISTS skill_matrix (
         id_skill_matrix INT AUTO_INCREMENT PRIMARY KEY,
         id_staff INT,
         id_skill INT,
@@ -128,36 +104,46 @@ try {
 
     // Daftar cabang - Pastikan urutan cabang tetap konsisten
     $cabang_list = ['Saidan', 'Solo', 'Sora', 'Grand Edge', 'Soal Rambut'];
-
-    // Insert cabang berurutan dan dapatkan ID secara eksplisit
-    foreach ($cabang_list as $index => $cabang) {
-        $stmt = $conn->prepare("INSERT INTO cabang (nama_cabang) VALUES (?)");
-        $stmt->bind_param("s", $cabang);
-        $stmt->execute();
-        $cabang_id = $index + 1; // ID cabang seharusnya berurut 1, 2, 3, ...
-
-        // Daftar divisi
-        $divisi_list = [
-            'Treatment',
-            'Meni Pedi',
-            'Nail Art',
-            'Blow Dry',
-            'Smothing',
-            'Perming',
-            'Color',
-            'Cutting',
-            'Hair Do',
-            'Make Up',
-            'Waxing',
-            'Hair Extension'
-        ];
-
-        // Insert divisi untuk cabang saat ini
-        foreach ($divisi_list as $divisi) {
-            $stmt = $conn->prepare("INSERT INTO divisi (nama_divisi, id_cabang) VALUES (?, ?)");
-            $stmt->bind_param("si", $divisi, $cabang_id);
+    
+    // Cek apakah cabang sudah ada dalam database
+    $result = $conn->query("SELECT COUNT(*) as count FROM cabang");
+    $row = $result->fetch_assoc();
+    
+    // Hanya masukkan cabang jika tabel kosong
+    if ($row['count'] == 0) {
+        // Insert cabang berurutan dan dapatkan ID secara eksplisit
+        foreach ($cabang_list as $index => $cabang) {
+            $stmt = $conn->prepare("INSERT INTO cabang (nama_cabang) VALUES (?)");
+            $stmt->bind_param("s", $cabang);
             $stmt->execute();
+            $cabang_id = $index + 1; // ID cabang seharusnya berurut 1, 2, 3, ...
+
+            // Daftar divisi
+            $divisi_list = [
+                'Treatment',
+                'Meni Pedi',
+                'Nail Art',
+                'Blow Dry',
+                'Smothing',
+                'Perming',
+                'Color',
+                'Cutting',
+                'Hair Do',
+                'Make Up',
+                'Waxing',
+                'Hair Extension'
+            ];
+
+            // Insert divisi untuk cabang saat ini
+            foreach ($divisi_list as $divisi) {
+                $stmt = $conn->prepare("INSERT INTO divisi (nama_divisi, id_cabang) VALUES (?, ?)");
+                $stmt->bind_param("si", $divisi, $cabang_id);
+                $stmt->execute();
+            }
         }
+        
+        echo "✅ Data cabang dan divisi berhasil dimasukkan.<br>";
+    } else {
     }
 
     // Temporarily disable foreign key checks for data restoration
@@ -179,6 +165,8 @@ try {
 
             if (!$restoreSkill) {
                 echo "❌ Gagal memulihkan data skill: " . $conn->error . "<br>";
+            } else {
+                echo "✅ Data skill berhasil dipulihkan.<br>";
             }
         }
 
@@ -197,6 +185,8 @@ try {
             // We'll need to transfer data carefully here due to schema changes
             // For simplicity, we'll assign a default skill based on division
             $result = $conn->query("SELECT * FROM staff_backup");
+            $restored = 0;
+            
             while ($staff = $result->fetch_assoc()) {
                 // Find a matching skill for this division
                 $skillQuery = $conn->prepare("SELECT id_skill FROM skill WHERE id_divisi = ? LIMIT 1");
@@ -217,9 +207,13 @@ try {
                         $staff['id_divisi'], 
                         $staff['id_cabang']
                     );
-                    $insertStaff->execute();
+                    if ($insertStaff->execute()) {
+                        $restored++;
+                    }
                 }
             }
+            
+            echo "✅ $restored data staff berhasil dipulihkan.<br>";
         }
 
         // Drop the backup table after restoration
@@ -242,6 +236,8 @@ try {
 
             if (!$restoreMatrix) {
                 echo "❌ Gagal memulihkan data skill_matrix: " . $conn->error . "<br>";
+            } else {
+                echo "✅ Data skill_matrix berhasil dipulihkan.<br>";
             }
         }
 

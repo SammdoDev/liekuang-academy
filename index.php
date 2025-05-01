@@ -59,26 +59,22 @@ $resultCabang = $conn->query($queryCabang);
                 <h2 class="text-xl font-semibold text-gray-700"><?= htmlspecialchars($cabang['nama_cabang']) ?></h2>
                 <p class="text-gray-500 text-sm mt-2">ID: <?= $cabang['id_cabang'] ?></p>
                 <div class="flex mt-4 space-x-2">
-                <a href="divisi/divisi.php?cabang_id=<?= $cabang['id_cabang'] ?>" 
-                   class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center justify-center">
-                      Lihat
-                </a>
-                    <button onclick="aksesModal(<?= $cabang['id_cabang'] ?>, '<?= htmlspecialchars($cabang['nama_cabang']) ?>')" 
-                            class="flex-1 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition flex items-center justify-center">
-                        <i class="fas fa-lock mr-2"></i> Akses
-                    </button>
+                <button onclick="lihatModal(<?= $cabang['id_cabang'] ?>, '<?= htmlspecialchars($cabang['nama_cabang']) ?>')" 
+                       class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center justify-center">
+                      <i class="fas fa-eye mr-2"></i> Lihat
+                </button>
                 </div>
             </div>
         <?php endwhile; ?>
     </div>
 </main>
 
-<!-- Modal untuk password -->
+<!-- Modal untuk password Akses -->
 <div id="passwordModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
     <div class="bg-white rounded-lg shadow-lg p-6 max-w-md w-full">
         <div class="flex justify-between items-center mb-4">
             <h3 class="text-xl font-semibold" id="modalTitle">Akses Cabang</h3>
-            <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700">
+            <button onclick="closeModal('passwordModal')" class="text-gray-500 hover:text-gray-700">
                 <i class="fas fa-times"></i>
             </button>
         </div>
@@ -90,7 +86,35 @@ $resultCabang = $conn->query($queryCabang);
                        class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
             </div>
             <div class="flex justify-end">
-                <button type="button" onclick="closeModal()" class="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg mr-2 hover:bg-gray-400 transition">
+                <button type="button" onclick="closeModal('passwordModal')" class="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg mr-2 hover:bg-gray-400 transition">
+                    Batal
+                </button>
+                <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition">
+                    Masuk
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal untuk password Lihat -->
+<div id="lihatPasswordModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-lg p-6 max-w-md w-full">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-semibold" id="lihatModalTitle">Lihat Divisi Cabang</h3>
+            <button onclick="closeModal('lihatPasswordModal')" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form id="lihatPasswordForm" method="post" action="lihat_divisi.php">
+            <input type="hidden" id="lihatCabangId" name="cabang_id">
+            <div class="mb-4">
+                <label for="lihatPassword" class="block text-gray-700 mb-2">Masukkan Password:</label>
+                <input type="password" id="lihatPassword" name="password" 
+                       class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+            </div>
+            <div class="flex justify-end">
+                <button type="button" onclick="closeModal('lihatPasswordModal')" class="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg mr-2 hover:bg-gray-400 transition">
                     Batal
                 </button>
                 <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition">
@@ -108,16 +132,32 @@ $resultCabang = $conn->query($queryCabang);
         document.getElementById('passwordModal').classList.remove('hidden');
     }
     
-    function closeModal() {
-        document.getElementById('passwordModal').classList.add('hidden');
-        document.getElementById('password').value = '';
+    function lihatModal(id, nama) {
+        document.getElementById('lihatCabangId').value = id;
+        document.getElementById('lihatModalTitle').innerText = 'Lihat Divisi Cabang: ' + nama;
+        document.getElementById('lihatPasswordModal').classList.remove('hidden');
+    }
+    
+    function closeModal(modalId) {
+        document.getElementById(modalId).classList.add('hidden');
+        if (modalId === 'passwordModal') {
+            document.getElementById('password').value = '';
+        } else if (modalId === 'lihatPasswordModal') {
+            document.getElementById('lihatPassword').value = '';
+        }
     }
     
     // Tutup modal jika user mengklik di luar modal
     window.onclick = function(event) {
-        let modal = document.getElementById('passwordModal');
-        if (event.target === modal) {
-            closeModal();
+        let accessModal = document.getElementById('passwordModal');
+        let viewModal = document.getElementById('lihatPasswordModal');
+        
+        if (event.target === accessModal) {
+            closeModal('passwordModal');
+        }
+        
+        if (event.target === viewModal) {
+            closeModal('lihatPasswordModal');
         }
     }
 </script>

@@ -17,14 +17,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         // Password benar, simpan akses dalam session
         $_SESSION['cabang_akses'][$cabang_id] = true;
         
-        // Redirect ke halaman cabang terkait atau halaman lain sesuai kebutuhan
-        // Jika ingin redirect ke halaman tertentu untuk access, ganti URL di bawah
-        header("Location: index.php?access_granted=true&cabang_id=" . $cabang_id);
+        // Redirect ke halaman divisi dengan parameter cabang_id
+        header("Location: divisi/divisi.php?cabang_id=" . $cabang_id);
         exit();
     } else {
         // Password salah atau cabang tidak ditemukan
         // Simpan pesan error dalam session
-        $_SESSION['error_message'] = "Password untuk akses cabang ini salah!";
+        $_SESSION['error_message'] = "Password untuk cabang ini salah!";
         header("Location: index.php");
         exit();
     }
