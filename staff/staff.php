@@ -23,6 +23,9 @@ $skill_id = intval($_GET['skill_id']);
 $divisi_id = intval($_GET['divisi_id']);
 $cabang_id = isset($_GET['cabang_id']) ? intval($_GET['cabang_id']) : 0;
 
+// Variabel pencarian
+$search = isset($_GET['search']) ? trim($_GET['search']) : '';
+
 // Variabel untuk cek status otentikasi
 $authenticated = false;
 $auth_message = "";
@@ -118,7 +121,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['tambah_staff']) && !e
     
     if ($cekResult->num_rows === 0) {
         // Staff belum ada, tambahkan dengan skill_id yang sesuai
-        $tambahStaff = $conn->prepare("INSERT INTO staff (nama_staff, id_skill, id_divisi, id_cabang) VALUES (?, ?, ?, ?)");
+        $tambahStaff = $conn->prepare("INSERT INTO staff (nama_staff, id_skill, id_divisi, id_cabang, created_at) VALUES (?, ?, ?, ?, NOW())");
         $tambahStaff->bind_param("siii", $nama_staff, $skill_id, $divisi_id, $cabang_id);
         
         if ($tambahStaff->execute()) {
@@ -150,35 +153,48 @@ $countQuery->execute();
 $countResult = $countQuery->get_result()->fetch_assoc();
 $staffCount = $countResult['total'];
 
-// Ambil daftar staff dengan nilai rata-rata skill matrix mereka
-$staffQuery = $conn->prepare("
+// Persiapkan query untuk pencarian staff
+$searchCondition = "";
+$searchParams = [];
+$paramTypes = "";
+
+if (!empty($search)) {
+    $searchCondition = " AND s.nama_staff LIKE ? ";
+    $searchParams[] = "%$search%";
+    $paramTypes .= "s";
+}
+
+// Query untuk mengambil data staff beserta nilai rata-rata
+// Gunakan created_at untuk mengurutkan staff (paling lama dulu)
+$query = "
     SELECT 
         s.id_staff, 
         s.nama_staff,
-        COALESCE(AVG(sm.total_look), 0) as avg_total_look,
-        COALESCE(AVG(sm.konsultasi_komunikasi), 0) as avg_konsultasi,
-        COALESCE(AVG(sm.teknik), 0) as avg_teknik,
-        COALESCE(AVG(sm.kerapian_kebersihan), 0) as avg_kerapian,
-        COALESCE(AVG(sm.produk_knowledge), 0) as avg_produk,
-        COALESCE(AVG(sm.rata_rata), 0) as avg_total
+        COALESCE(
+            (SELECT AVG(sm.rata_rata) FROM skill_matrix sm WHERE sm.id_staff = s.id_staff AND sm.id_skill = ?), 
+            0
+        ) as avg_total
     FROM staff s
-    LEFT JOIN skill_matrix sm ON s.id_staff = sm.id_staff AND sm.id_skill = ?
-    WHERE s.id_skill = ? AND s.id_divisi = ?
-    GROUP BY s.id_staff
-    ORDER BY s.nama_staff
-");
-$staffQuery->bind_param("iii", $skill_id, $skill_id, $divisi_id);
+    WHERE s.id_skill = ? AND s.id_divisi = ? $searchCondition
+    ORDER BY s.nama_staff ASC
+
+";
+
+$staffQuery = $conn->prepare($query);
+
+// Binding parameters
+if (!empty($search)) {
+    $staffQuery->bind_param("iii" . $paramTypes, $skill_id, $skill_id, $divisi_id, ...$searchParams);
+} else {
+    $staffQuery->bind_param("iii", $skill_id, $skill_id, $divisi_id);
+}
+
 $staffQuery->execute();
 $staffResult = $staffQuery->get_result();
 
 // Get average rating for this skill
 $avgQuery = $conn->prepare("
-    SELECT COALESCE(AVG(sm.rata_rata), 0) as avg_skill,
-           COALESCE(AVG(sm.total_look), 0) as avg_total_look,
-           COALESCE(AVG(sm.konsultasi_komunikasi), 0) as avg_konsultasi,
-           COALESCE(AVG(sm.teknik), 0) as avg_teknik,
-           COALESCE(AVG(sm.kerapian_kebersihan), 0) as avg_kerapian,
-           COALESCE(AVG(sm.produk_knowledge), 0) as avg_produk
+    SELECT COALESCE(AVG(sm.rata_rata), 0) as avg_skill
     FROM skill_matrix sm 
     WHERE sm.id_skill = ?
 ");
@@ -186,6 +202,18 @@ $avgQuery->bind_param("i", $skill_id);
 $avgQuery->execute();
 $avgResult = $avgQuery->get_result()->fetch_assoc();
 $avg_skill = number_format($avgResult['avg_skill'], 1);
+
+// Store staff data in array for caching
+$staffData = [];
+if ($staffResult && $staffResult->num_rows > 0) {
+    while ($row = $staffResult->fetch_assoc()) {
+        $staffData[] = [
+            'id_staff' => $row['id_staff'],
+            'nama_staff' => $row['nama_staff'],
+            'avg_total' => $row['avg_total']
+        ];
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -196,164 +224,222 @@ $avg_skill = number_format($avgResult['avg_skill'], 1);
     <title>Staff - <?= htmlspecialchars($nama_skill) ?></title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Prevent flickering on load */
+        .rating-value {
+            min-width: 3.5rem;
+            display: inline-block;
+            text-align: center;
+        }
+    </style>
 </head>
-<body class="bg-gray-100 p-6">
+<body class="bg-gray-100 p-4 md:p-6">
     <div class="max-w-4xl mx-auto">
         <!-- Header -->
-        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
-            <div class="flex justify-between items-start">
+        <div class="bg-white p-4 md:p-6 rounded-lg shadow-md mb-6">
+            <div class="flex flex-col md:flex-row justify-between md:items-center">
                 <div>
                     <h1 class="text-2xl font-bold mb-2">Staff Skill: <?= htmlspecialchars($nama_skill) ?></h1>
-                    <p class="text-gray-600">Divisi: <?= htmlspecialchars($nama_divisi) ?></p>
-                    <p class="text-gray-600 mb-4">Cabang: <?= htmlspecialchars($nama_cabang) ?></p>
-                </div>
-                <span class="bg-blue-100 text-blue-800 text-sm font-medium px-2.5 py-0.5 rounded">
-                    <?= $staffCount ?> Staff
-                </span>
-            </div>
-            
-            <!-- Navigasi -->
-            <div class="flex mb-4">
-                <a href="../skill/skill.php?divisi_id=<?= $divisi_id ?>" class="text-blue-600 hover:underline mr-4">
-                     Kembali ke Daftar Skill
-                </a>
-                <?php if ($authenticated): ?>
-                <div class="mb-4">
-                    <div class="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                        <a href="?skill_id=<?= $skill_id ?>&divisi_id=<?= $divisi_id ?>&cabang_id=<?= $cabang_id ?>&logout=true" 
-                           class="text-red-600 hover:text-red-800 text-sm font-medium">
-                            <i class="fas fa-sign-out-alt mr-1"></i> Logout
-                        </a>
+                    <div class="flex flex-wrap gap-2 mb-4">
+                        <p class="text-gray-600">Divisi: <span class="font-medium"><?= htmlspecialchars($nama_divisi) ?></span></p>
+                        <span class="text-gray-400 hidden md:inline">|</span>
+                        <p class="text-gray-600">Cabang: <span class="font-medium"><?= htmlspecialchars($nama_cabang) ?></span></p>
                     </div>
                 </div>
-            <?php endif; ?>
+                <div class="flex items-center gap-3">
+                    <span class="bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full">
+                        <i class="fas fa-users mr-1"></i> <?= $staffCount ?> Staff
+                    </span>
+                </div>
             </div>
             
-            <!-- Status Autentikasi (hanya tampilkan jika sudah login) -->
-
+            <!-- Navigation -->
+            <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+                <a href="../skill/skill.php?divisi_id=<?= $divisi_id ?>" class="flex items-center text-blue-600 hover:text-blue-800 hover:underline">
+                    <i class="fas fa-arrow-left mr-2"></i> Kembali ke Daftar Skill
+                </a>
+                <?php if ($authenticated): ?>
+                <div class="flex items-center bg-green-50 px-3 py-2 rounded-lg">
+                    <span class="text-green-700 mr-2"><i class="fas fa-check-circle"></i> Autentikasi Aktif</span>
+                    <a href="?skill_id=<?= $skill_id ?>&divisi_id=<?= $divisi_id ?>&cabang_id=<?= $cabang_id ?>&logout=true" 
+                        class="text-red-600 hover:text-red-800 text-sm font-medium ml-2">
+                        <i class="fas fa-sign-out-alt mr-1"></i> Logout
+                    </a>
+                </div>
+                <?php endif; ?>
+            </div>
             
             <!-- Form Tambah Staff (Inline) -->
-            <div class="mb-4 p-4 bg-gray-50 rounded-lg">
-                <h3 class="text-lg font-medium mb-3">Tambah Staff Baru untuk Skill Ini</h3>
+            <div class="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <h3 class="text-lg font-medium mb-3">Tambah Staff Baru</h3>
                 <?php if (isset($error_message)): ?>
                     <div class="bg-red-100 p-3 rounded-lg mb-3">
                         <p class="text-red-800"><?= htmlspecialchars($error_message) ?></p>
                     </div>
                 <?php endif; ?>
                 
-                <form method="POST" action="<?= $_SERVER['PHP_SELF'] ?>?skill_id=<?= $skill_id ?>&divisi_id=<?= $divisi_id ?>&cabang_id=<?= $cabang_id ?>" class="flex items-center">
+                <form method="POST" action="<?= $_SERVER['PHP_SELF'] ?>?skill_id=<?= $skill_id ?>&divisi_id=<?= $divisi_id ?>&cabang_id=<?= $cabang_id ?>" class="flex flex-col sm:flex-row items-center gap-2">
                     <input type="text" name="nama_staff" placeholder="Nama Staff" required
-                           class="px-4 py-2 border rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500 flex-grow">
+                           class="px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 flex-grow w-full sm:w-auto">
                     <button type="submit" name="tambah_staff" 
-                            class="bg-blue-500 text-white px-4 py-2 rounded-r-md hover:bg-blue-600">
-                        Tambah
+                            class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 w-full sm:w-auto">
+                        <i class="fas fa-plus-circle mr-1"></i> Tambah Staff
                     </button>
                 </form>
             </div>
         </div>
         
-        <!-- Pesan Notifikasi -->
+        <!-- Notification Messages -->
         <?php if (isset($_GET['deleted']) && $_GET['deleted'] == 'success'): ?>
-            <div class="bg-green-100 p-4 rounded-lg mb-6">
+            <div class="bg-green-100 p-4 rounded-lg mb-6 flex items-center">
+                <i class="fas fa-check-circle text-green-500 mr-2"></i>
                 <p class="text-green-800">
-                     Staff <?= htmlspecialchars(urldecode($_GET['staff_name'] ?? 'tersebut')) ?> berhasil dihapus
+                    Staff <?= htmlspecialchars(urldecode($_GET['staff_name'] ?? 'tersebut')) ?> berhasil dihapus
                 </p>
             </div>
         <?php endif; ?>
         
         <?php if (isset($_GET['updated']) && $_GET['updated'] == 'success'): ?>
-            <div class="bg-green-100 p-4 rounded-lg mb-6">
+            <div class="bg-green-100 p-4 rounded-lg mb-6 flex items-center">
+                <i class="fas fa-check-circle text-green-500 mr-2"></i>
                 <p class="text-green-800">
-                     Data staff <?= htmlspecialchars(urldecode($_GET['staff_name'] ?? 'tersebut')) ?> berhasil diperbarui
+                    Data staff <?= htmlspecialchars(urldecode($_GET['staff_name'] ?? 'tersebut')) ?> berhasil diperbarui
                 </p>
             </div>
         <?php endif; ?>
         
         <?php if (isset($_GET['added']) && $_GET['added'] == 'success'): ?>
-            <div class="bg-green-100 p-4 rounded-lg mb-6">
+            <div class="bg-green-100 p-4 rounded-lg mb-6 flex items-center">
+                <i class="fas fa-check-circle text-green-500 mr-2"></i>
                 <p class="text-green-800">
-                     Staff <?= htmlspecialchars(urldecode($_GET['staff_name'] ?? 'baru')) ?> berhasil ditambahkan
+                    Staff <?= htmlspecialchars(urldecode($_GET['staff_name'] ?? 'baru')) ?> berhasil ditambahkan
                 </p>
             </div>
         <?php endif; ?>
         
-        <!-- Daftar Staff dengan Skill Matrix -->
-        <div class="bg-white rounded-lg shadow-md overflow-hidden">
-            <?php if ($staffResult->num_rows > 0): ?>
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                No
-                            </th>
-                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Nama Staff
-                            </th>
-
-                            <th scope="col" class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Rata-Rata
-                            </th>
-                            <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Aksi
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
-                        <?php 
-                        $counter = 1;
-                        while ($staff = $staffResult->fetch_assoc()): 
-                            // Ambil nilai untuk tampilan
-                            $avg_total = number_format($staff['avg_total'], 1);
-                        ?>
+        <!-- Staff List with Skill Matrix (Simplified) -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden mb-6">
+            <div class="border-b border-gray-200 px-6 py-4">
+                <div class="flex flex-col md:flex-row justify-between md:items-center">
+                    <div>
+                        <h2 class="text-xl font-semibold">Daftar Staff</h2>
+                        <p class="text-sm text-gray-500">Nilai rata-rata skill matrix</p>
+                    </div>
+                    
+                    <!-- Search Form -->
+                    <form method="GET" action="" class="mt-3 md:mt-0">
+                        <input type="hidden" name="skill_id" value="<?= $skill_id ?>">
+                        <input type="hidden" name="divisi_id" value="<?= $divisi_id ?>">
+                        <input type="hidden" name="cabang_id" value="<?= $cabang_id ?>">
+                        <div class="flex">
+                            <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="Cari nama staff..." 
+                                class="px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <button type="submit" class="bg-blue-500 text-white px-3 py-2 rounded-r-md hover:bg-blue-600">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <?php if (count($staffData) > 0): ?>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
                             <tr>
-                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    <?= $counter++ ?>
-                                </td>
-                                <td class="px-4 py-4 whitespace-nowrap">
-                                    <div class="text-sm font-medium text-gray-900">
-                                        <?= htmlspecialchars($staff['nama_staff']) ?>
-                                    </div>
-                                </td>
-                                <td class="px-4 py-4 whitespace-nowrap text-center">
-                                    <span class="<?= getColorClass($staff['avg_total']) ?> px-2 py-1 rounded text-xs font-medium font-bold">
-                                        <?= $avg_total ?>
-                                    </span>
-                                </td>
-                                <td class="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <?php if (!$authenticated): ?>
-                                    <!-- Tombol input nilai dengan popup password jika belum login -->
-                                    <button onclick="showPasswordModal(<?= $staff['id_staff'] ?>)" 
-                                           class="text-indigo-600 hover:text-indigo-900 mr-3">
-                                        <i class="fas fa-clipboard-list mr-1"></i> Input Nilai
-                                    </button>
-                                    <?php else: ?>
-                                    <!-- Link input nilai jika sudah login -->
-                                    <a href="../skill_matrix/skill_matrix.php?id_staff=<?= $staff['id_staff'] ?>&id_skill=<?= $skill_id ?>&divisi_id=<?= $divisi_id ?>" 
-                                       class="text-indigo-600 hover:text-indigo-900 mr-3">
-                                        <i class="fas fa-clipboard-list mr-1"></i> Input Nilai
-                                    </a>
-                                    <?php endif; ?>
-                                    <a href="edit_staff.php?id_staff=<?= $staff['id_staff'] ?>&skill_id=<?= $skill_id ?>&divisi_id=<?= $divisi_id ?>" 
-                                       class="text-indigo-600 hover:text-indigo-900 mr-3">
-                                        <i class="fas fa-edit mr-1"></i> Edit
-                                    </a>
-                                    <a href="hapus_staff.php?id_staff=<?= $staff['id_staff'] ?>&skill_id=<?= $skill_id ?>&divisi_id=<?= $divisi_id ?>&confirm=true" 
-                                       onclick="return confirm('Apakah Anda yakin ingin menghapus staff ini?');"
-                                       class="text-red-600 hover:text-red-900">
-                                        <i class="fas fa-trash mr-1"></i> Hapus
-                                    </a>
-                                </td>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    No
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Nama Staff
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider font-bold">
+                                    Rata-Rata
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Aksi
+                                </th>
                             </tr>
-                        <?php endwhile; ?>
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200" id="staffTable">
+                            <?php 
+                            $counter = 1;
+                            foreach ($staffData as $staff): 
+                                // Format nilai untuk tampilan
+                                $avg_total = number_format($staff['avg_total'], 1);
+                            ?>
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <?= $counter++ ?>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm font-medium text-gray-900">
+                                            <?= htmlspecialchars($staff['nama_staff']) ?>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-center">
+                                        <span class="<?= getColorClass($staff['avg_total']) ?> px-3 py-1 rounded-full text-sm font-bold rating-value">
+                                            <?= $avg_total ?>
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <div class="flex flex-wrap items-center justify-end gap-3">
+                                            <?php if (!$authenticated): ?>
+                                            <!-- Tombol input nilai dengan popup password jika belum login -->
+                                            <button onclick="showPasswordModal(<?= $staff['id_staff'] ?>)" 
+                                                class="text-indigo-600 hover:text-indigo-900 flex items-center">
+                                                <i class="fas fa-clipboard-list mr-1"></i> Input Nilai
+                                            </button>
+                                            <?php else: ?>
+                                            <!-- Link input nilai jika sudah login -->
+                                            <a href="../skill_matrix/skill_matrix.php?id_staff=<?= $staff['id_staff'] ?>&id_skill=<?= $skill_id ?>&divisi_id=<?= $divisi_id ?>" 
+                                               class="text-indigo-600 hover:text-indigo-900 flex items-center">
+                                                <i class="fas fa-clipboard-list mr-1"></i> Input Nilai
+                                            </a>
+                                            <?php endif; ?>
+                                            <a href="edit_staff.php?id_staff=<?= $staff['id_staff'] ?>&skill_id=<?= $skill_id ?>&divisi_id=<?= $divisi_id ?>" 
+                                               class="text-blue-600 hover:text-blue-900 flex items-center">
+                                                <i class="fas fa-edit mr-1"></i> Edit
+                                            </a>
+                                            <a href="hapus_staff.php?id_staff=<?= $staff['id_staff'] ?>&skill_id=<?= $skill_id ?>&divisi_id=<?= $divisi_id ?>&confirm=true" 
+                                               onclick="return confirm('Apakah Anda yakin ingin menghapus staff ini?');"
+                                               class="text-red-600 hover:text-red-900 flex items-center">
+                                                <i class="fas fa-trash mr-1"></i> Hapus
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <?php if (!empty($search)): ?>
+                <div class="p-4 border-t">
+                    <a href="?skill_id=<?= $skill_id ?>&divisi_id=<?= $divisi_id ?>&cabang_id=<?= $cabang_id ?>" class="text-blue-600 hover:underline">
+                        <i class="fas fa-times-circle mr-1"></i> Hapus filter pencarian
+                    </a>
+                </div>
+                <?php endif; ?>
             <?php else: ?>
                 <div class="p-6 text-center">
-                    <p class="text-gray-500">Belum ada staff untuk skill ini.</p>
+                    <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
+                        <i class="fas fa-users text-gray-400 text-2xl"></i>
+                    </div>
+                    <?php if (!empty($search)): ?>
+                        <p class="text-gray-500">Tidak ada staff yang cocok dengan pencarian "<?= htmlspecialchars($search) ?>"</p>
+                        <p class="mt-2">
+                            <a href="?skill_id=<?= $skill_id ?>&divisi_id=<?= $divisi_id ?>&cabang_id=<?= $cabang_id ?>" class="text-blue-600 hover:underline">
+                                <i class="fas fa-arrow-left mr-1"></i> Kembali ke semua staff
+                            </a>
+                        </p>
+                    <?php else: ?>
+                        <p class="text-gray-500">Belum ada staff untuk skill ini.</p>
+                        <p class="text-gray-400 text-sm mt-2">Gunakan form di atas untuk menambahkan staff.</p>
+                    <?php endif; ?>
                 </div>
             <?php endif; ?>
         </div>
-    </div>
+
     
     <!-- Modal Password untuk Input Nilai -->
     <div id="passwordModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
@@ -385,20 +471,33 @@ $avg_skill = number_format($avgResult['avg_skill'], 1);
     
     <!-- Script untuk mempertahankan state dan fungsionalitas modal -->
     <script>
+    // Data rata-rata untuk setiap staff (cache di client-side)
+ // Data rata-rata untuk setiap staff (cache di client-side)
+ const staffRatings = <?= json_encode($staffData) ?>;
+    
     document.addEventListener('DOMContentLoaded', function() {
         // Mencegah resubmit form saat refresh
         if (window.history.replaceState) {
             window.history.replaceState(null, null, window.location.href);
         }
         
+        // Pastikan nilai rata-rata selalu ditampilkan dengan benar
+        refreshRatings();
+        
         // Otomatis hilangkan notifikasi setelah 5 detik
         setTimeout(function() {
-            const notifications = document.querySelectorAll('.bg-green-100, .bg-red-100:not([class*="px-2"])');
+            const notifications = document.querySelectorAll('.bg-green-100, .bg-red-100:not([role="status"])');
             notifications.forEach(function(notification) {
                 notification.style.display = 'none';
             });
         }, 5000);
     });
+    
+    // Fungsi untuk menyegarkan tampilan nilai rata-rata
+    function refreshRatings() {
+        // Tidak perlu implementasi karena kita sudah menggunakan server-side rendering
+        // dan menyimpan data dalam array di PHP
+    }
     
     // Fungsi untuk menampilkan modal password
     function showPasswordModal(staffId) {
@@ -413,9 +512,43 @@ $avg_skill = number_format($avgResult['avg_skill'], 1);
     
     // Tutup modal jika user klik di luar modal
     window.onclick = function(event) {
-        var modal = document.getElementById('passwordModal');
-        if (event.target == modal) {
+        const modal = document.getElementById('passwordModal');
+        if (event.target === modal) {
             hidePasswordModal();
+        }
+    };
+    
+    // Validasi form password sebelum submit
+    document.getElementById('passwordForm').addEventListener('submit', function(event) {
+        const password = document.getElementById('admin_password').value;
+        if (!password) {
+            event.preventDefault();
+            document.getElementById('passwordError').classList.remove('hidden');
+            return false;
+        }
+        document.getElementById('passwordError').classList.add('hidden');
+        return true;
+    });
+    
+    // Fungsi untuk export data ke Excel
+    function exportToExcel() {
+        window.location.href = 'export.php?type=excel';
+    }
+    
+    // Fungsi untuk export data ke PDF
+    function exportToPDF() {
+        window.location.href = 'export.php?type=pdf';
+    }
+    
+    // Fungsi untuk menangani perubahan filter tanggal
+    document.getElementById('date_filter').addEventListener('change', function() {
+        document.getElementById('filter_form').submit();
+    });
+    
+    // Fungsi untuk menampilkan konfirmasi hapus data
+    function confirmDelete(staffId) {
+        if (confirm('Apakah Anda yakin ingin menghapus data staff ini?')) {
+            window.location.href = 'delete_staff.php?id=' + staffId;
         }
     }
     </script>
