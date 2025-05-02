@@ -290,7 +290,7 @@ if ($staffResult && $staffResult->num_rows > 0) {
         <!-- Sidebar -->
         <aside class="w-full lg:w-64 bg-white dark:bg-gray-800 shadow-md lg:sticky lg:top-0 lg:h-screen">
             <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Skill Matrix</h2>
+                <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Skill Staff</h2>
                 <button id="mobile-menu-button"
                     class="lg:hidden text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
                     <i class="fas fa-bars"></i>
@@ -770,7 +770,7 @@ if ($staffResult && $staffResult->num_rows > 0) {
                         notification.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
                         setTimeout(() => notification.remove(), 500);
                     });
-                }, 5000);
+                }, 10000);
             }
         });
 
