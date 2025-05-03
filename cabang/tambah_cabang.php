@@ -4,7 +4,7 @@ session_start();
 
 // Cek jika user belum login
 if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
-    header('Location: ../login.php');
+    header('Location: ../index.php');
     exit;
 }
 
@@ -43,7 +43,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 
                 // Redirect jika diminta
                 if (isset($_POST['save_and_return']) && $_POST['save_and_return'] == '1') {
-                    header("Location: ../index.php?created=success&cabang_name=" . urlencode($nama_cabang));
+                    header("Location: ../cabang.php?created=success&cabang_name=" . urlencode($nama_cabang));
                     exit();
                 }
             } else {
@@ -96,7 +96,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             </div>
             
             <nav class="p-6 space-y-4">
-                <a href="../index.php" class="flex items-center text-gray-700 dark:text-gray-300 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition group">
+                <a href="../cabang.php" class="flex items-center text-gray-700 dark:text-gray-300 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition group">
                     <i class="fas fa-home mr-3 text-gray-500 dark:text-gray-400 group-hover:text-primary-500"></i>
                     <span>Home</span>
                 </a>
@@ -134,7 +134,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         <main class="flex-1 p-6 lg:p-8">
             <div class="mb-8">
                 <div class="flex items-center">
-                    <a href="../index.php" class="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 mr-2">
+                    <a href="../cabang.php" class="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 mr-2">
                         <i class="fas fa-home"></i>
                     </a>
                     <span class="text-gray-500 dark:text-gray-500 mx-2">/</span>

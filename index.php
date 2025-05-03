@@ -1,22 +1,10 @@
-<?php
-include 'koneksi.php';
-include 'table.php';
-session_start();
-
-// Ambil daftar cabang dan urutkan berdasarkan ID
-$queryCabang = "SELECT * FROM cabang ORDER BY id_cabang ASC";
-$resultCabang = $conn->query($queryCabang);
-
-// Hitung jumlah cabang
-$jumlahCabang = $resultCabang->num_rows;
-?>
-
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Cabang</title>
+    <title>Liekuang Academy - Login</title>
+    <!-- Tailwind CSS via CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script>
@@ -43,227 +31,104 @@ $jumlahCabang = $resultCabang->num_rows;
         }
     </script>
 </head>
-<body class="bg-gray-50 dark:bg-gray-900 min-h-screen">
-    <div class="flex flex-col lg:flex-row min-h-screen">
-        <!-- Sidebar -->
-        <aside class="w-full lg:w-64 bg-white dark:bg-gray-800 shadow-md">
-            <div class="p-6 border-b border-gray-200 dark:border-gray-700">
-                <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Dashboard</h2>
+<body class="bg-gray-50 dark:bg-gray-900 min-h-screen flex items-center justify-center">
+    <div class="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md w-96 border border-gray-200 dark:border-gray-700">
+        <div class="text-center mb-6">
+            <div class="inline-flex items-center justify-center w-16 h-16 bg-primary-100 dark:bg-primary-900 rounded-full mb-4">
+                <i class="fas fa-layer-group text-3xl text-primary-600 dark:text-primary-400"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Liekuang Academy</h2>
+            <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">Sign in to your account</p>
+        </div>
+        
+        <?php
+        // Display error message if any
+        if (isset($_GET['error'])) {
+            echo '<div class="bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded mb-4">';
+            
+            if ($_GET['error'] == "emptyfields") {
+                echo "Please fill in all fields.";
+            } else if ($_GET['error'] == "wrongcredentials") {
+                echo "Invalid username or password.";
+            } else if ($_GET['error'] == "sqlerror") {
+                echo "Database error. Please try again later.";
+            }
+            
+            echo '</div>';
+        }
+        
+        // Display success message if any
+        if (isset($_GET['success'])) {
+            echo '<div class="bg-green-100 dark:bg-green-900/30 border border-green-400 dark:border-green-800 text-green-700 dark:text-green-400 px-4 py-3 rounded mb-4">';
+            
+            if ($_GET['success'] == "registered") {
+                echo "Registration successful! Please login.";
+            } else if ($_GET['success'] == "logout") {
+                echo "You have been successfully logged out.";
+            }
+            
+            echo '</div>';
+        }
+        ?>
+        
+        <form action="login_process.php" method="post" class="space-y-4">
+            <div>
+                <label for="username" class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">Username</label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                        <i class="fas fa-user text-gray-400"></i>
+                    </div>
+                    <input type="text" id="username" name="username"
+                           class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                </div>
             </div>
             
-            <nav class="p-6 space-y-4">
-                <a href="index.php" class="flex items-center text-gray-700 dark:text-gray-300 px-4 py-3 rounded-lg bg-gray-100 dark:bg-gray-700 transition group">
-                    <i class="fas fa-home mr-3 text-primary-500"></i>
-                    <span>Home</span>
-                </a>
-                <a href="staff/staff.php" class="flex items-center text-gray-700 dark:text-gray-300 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition group">
-                    <i class="fas fa-users mr-3 text-gray-500 dark:text-gray-400 group-hover:text-primary-500"></i>
-                    <span>Staff</span>
-                </a>
-                <a href="divisi/divisi.php" class="flex items-center text-gray-700 dark:text-gray-300 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition group">
-                    <i class="fas fa-sitemap mr-3 text-gray-500 dark:text-gray-400 group-hover:text-primary-500"></i>
-                    <span>Divisi</span>
-                </a>
-                
-                <div class="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
-                    <a href="cabang/tambah_cabang.php" 
-                       class="flex items-center text-white bg-primary-600 px-4 py-3 rounded-lg shadow-md hover:bg-primary-700 transition">
-                        <i class="fas fa-plus-circle mr-3"></i>
-                        <span>Tambah Cabang</span>
-                    </a>
+            <div>
+                <label for="password" class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">Password</label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                        <i class="fas fa-lock text-gray-400"></i>
+                    </div>
+                    <input type="password" id="password" name="password"
+                           class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
                 </div>
-            </nav>
+            </div>
             
-            <div class="p-6 mt-auto border-t border-gray-200 dark:border-gray-700">
-                <button id="darkModeToggle" class="flex items-center text-gray-700 dark:text-gray-300 px-4 py-2 w-full rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
-                    <i class="fas fa-moon mr-3 text-gray-500 dark:text-gray-400"></i>
-                    <span>Mode Gelap</span>
-                </button>
-                <a href="logout.php" class="flex items-center text-gray-700 dark:text-gray-300 px-4 py-2 w-full rounded-lg hover:bg-red-100 dark:hover:bg-red-900 hover:text-red-600 dark:hover:text-red-400 mt-2 transition">
-                    <i class="fas fa-sign-out-alt mr-3 text-gray-500 dark:text-gray-400"></i>
-                    <span>Logout</span>
-                </a>
+            <div class="flex items-center justify-between text-sm">
+                <div class="flex items-center">
+                    <input type="checkbox" id="remember" name="remember" class="w-4 h-4 border border-gray-300 rounded text-primary-600 focus:ring-primary-500">
+                    <label for="remember" class="ml-2 block text-gray-700 dark:text-gray-300">Remember me</label>
+                </div>
+                <a href="#" class="text-primary-600 dark:text-primary-400 hover:underline">Forgot password?</a>
             </div>
-        </aside>
-
-        <!-- Konten -->
-        <main class="flex-1 p-6 lg:p-8">
-            <div class="flex flex-col md:flex-row md:items-center justify-between mb-8">
-                <div>
-                    <h1 class="text-3xl font-bold text-gray-800 dark:text-white mb-2">Daftar Cabang</h1>
-                    <p class="text-gray-600 dark:text-gray-400">
-                        <i class="fas fa-building mr-2"></i>
-                        Total: <?= $jumlahCabang ?> cabang
-                    </p>
-                </div>
-                
-                <div class="mt-4 md:mt-0">
-                    <div class="relative">
-                        <input type="text" id="searchCabang" placeholder="Cari cabang..." 
-                               class="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500">
-                        <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
-                    </div>
-                </div>
-            </div>
-
-            <?php if ($jumlahCabang > 0): ?>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <?php 
-                    // Reset pointer to the beginning
-                    $resultCabang->data_seek(0);
-                    while ($cabang = $resultCabang->fetch_assoc()): 
-                    ?>
-                        <div class="cabang-card p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-all duration-300 flex flex-col">
-                            <div class="flex items-start justify-between">
-                                <div>
-                                    <h2 class="text-xl font-semibold text-gray-800 dark:text-white">
-                                        <?= htmlspecialchars($cabang['nama_cabang']) ?>
-                                    </h2>
-                                    <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">
-                                        ID: <?= $cabang['id_cabang'] ?>
-                                    </p>
-                                </div>
-                                <div class="dropdown relative">
-                                    <button class="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
-                                        <i class="fas fa-ellipsis-v"></i>
-                                    </button>
-                                    <div class="dropdown-menu hidden absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-10">
-                                        <a href="edit_cabang.php?id=<?= $cabang['id_cabang'] ?>" class="block px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
-                                            <i class="fas fa-edit mr-2"></i> Edit
-                                        </a>
-                                        <a href="hapus_cabang.php?id=<?= $cabang['id_cabang'] ?>" onclick="return confirm('Anda yakin ingin menghapus cabang ini?')" 
-                                           class="block px-4 py-2 text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700">
-                                            <i class="fas fa-trash-alt mr-2"></i> Hapus
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="mt-auto pt-4">
-                                <button onclick="lihatModal(<?= $cabang['id_cabang'] ?>, '<?= htmlspecialchars($cabang['nama_cabang']) ?>')" 
-                                       class="w-full bg-primary-600 text-white px-4 py-3 rounded-lg hover:bg-primary-700 transition flex items-center justify-center">
-                                      <i class="fas fa-eye mr-2"></i> Lihat Divisi
-                                </button>
-                            </div>
-                        </div>
-                    <?php endwhile; ?>
-                </div>
-            <?php else: ?>
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 text-center border border-gray-200 dark:border-gray-700">
-                    <div class="flex flex-col items-center">
-                        <div class="bg-gray-100 dark:bg-gray-700 p-6 rounded-full mb-4">
-                            <i class="fas fa-building text-4xl text-gray-400"></i>
-                        </div>
-                        <h3 class="text-xl font-medium text-gray-800 dark:text-white mb-2">Belum ada cabang</h3>
-                        <p class="text-gray-500 dark:text-gray-400 mb-6">Tambahkan cabang baru untuk memulai</p>
-                        <a href="tambah_cabang.php" 
-                           class="inline-flex items-center bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition">
-                            <i class="fas fa-plus-circle mr-2"></i>
-                            Tambah Cabang Pertama
-                        </a>
-                    </div>
-                </div>
-            <?php endif; ?>
-        </main>
-    </div>
-
-    <!-- Modal untuk password Lihat -->
-    <div id="lihatPasswordModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 max-w-md w-full">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xl font-semibold text-gray-800 dark:text-white" id="lihatModalTitle">Lihat Divisi Cabang</h3>
-                <button onclick="closeModal('lihatPasswordModal')" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
-                    <i class="fas fa-times"></i>
+            
+            <div>
+                <button type="submit" name="login-submit"
+                         class="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded-md transition duration-300 flex items-center justify-center">
+                    <i class="fas fa-sign-in-alt mr-2"></i>
+                    Login
                 </button>
             </div>
-            <form id="lihatPasswordForm" method="post" action="lihat_divisi.php">
-                <input type="hidden" id="lihatCabangId" name="cabang_id">
-                <div class="mb-4">
-                    <label for="lihatPassword" class="block text-gray-700 dark:text-gray-300 mb-2">Masukkan Password:</label>
-                    <input type="password" id="lihatPassword" name="password" 
-                           class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500" required>
-                </div>
-                <div class="flex justify-end">
-                    <button type="button" onclick="closeModal('lihatPasswordModal')" class="bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg mr-2 hover:bg-gray-400 dark:hover:bg-gray-500 transition">
-                        Batal
-                    </button>
-                    <button type="submit" class="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition">
-                        Masuk
-                    </button>
-                </div>
-            </form>
+        </form>
+        
+        <div class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700 text-center">
+            <button id="darkModeToggle" class="text-sm text-gray-500 dark:text-gray-400 flex items-center justify-center mx-auto hover:text-gray-700 dark:hover:text-gray-300">
+                <i class="fas fa-moon mr-2"></i>
+                <span>Toggle Dark Mode</span>
+            </button>
         </div>
     </div>
-
+    
     <script>
-        function lihatModal(id, nama) {
-            document.getElementById('lihatCabangId').value = id;
-            document.getElementById('lihatModalTitle').innerText = 'Lihat Divisi Cabang: ' + nama;
-            document.getElementById('lihatPasswordModal').classList.remove('hidden');
-        }
-        
-        function closeModal(modalId) {
-            document.getElementById(modalId).classList.add('hidden');
-            if (modalId === 'lihatPasswordModal') {
-                document.getElementById('lihatPassword').value = '';
-            }
-        }
-        
-        // Tutup modal jika user mengklik di luar modal
-        window.onclick = function(event) {
-            let viewModal = document.getElementById('lihatPasswordModal');
-            
-            if (event.target === viewModal) {
-                closeModal('lihatPasswordModal');
-            }
-        }
-        
-        // Dropdown toggle
-        document.querySelectorAll('.dropdown').forEach(dropdown => {
-            const btn = dropdown.querySelector('button');
-            const menu = dropdown.querySelector('.dropdown-menu');
-            
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                menu.classList.toggle('hidden');
-            });
-        });
-        
-        // Close dropdown when clicking outside
-        document.addEventListener('click', () => {
-            document.querySelectorAll('.dropdown-menu').forEach(menu => {
-                menu.classList.add('hidden');
-            });
-        });
-        
-        // Search functionality
-        const searchInput = document.getElementById('searchCabang');
-        const cabangCards = document.querySelectorAll('.cabang-card');
-        
-        searchInput.addEventListener('input', () => {
-            const searchTerm = searchInput.value.toLowerCase();
-            
-            cabangCards.forEach(card => {
-                const cabangName = card.querySelector('h2').textContent.toLowerCase();
-                const cabangId = card.querySelector('p').textContent.toLowerCase();
-                
-                if (cabangName.includes(searchTerm) || cabangId.includes(searchTerm)) {
-                    card.style.display = 'flex';
-                } else {
-                    card.style.display = 'none';
-                }
-            });
-        });
-        
         // Dark mode toggle
         const darkModeToggle = document.getElementById('darkModeToggle');
         const html = document.documentElement;
-        
+
         // Check system preference
         if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
             html.classList.add('dark');
         }
-        
+
         // Check for saved theme preference
         const savedTheme = localStorage.getItem('theme');
         if (savedTheme) {
@@ -273,24 +138,24 @@ $jumlahCabang = $resultCabang->num_rows;
                 html.classList.remove('dark');
             }
         }
-        
+
         // Toggle theme
         darkModeToggle.addEventListener('click', () => {
             if (html.classList.contains('dark')) {
                 html.classList.remove('dark');
                 localStorage.setItem('theme', 'light');
-                darkModeToggle.innerHTML = '<i class="fas fa-moon mr-3 text-gray-500"></i><span>Mode Gelap</span>';
+                darkModeToggle.innerHTML = '<i class="fas fa-moon mr-2"></i><span>Toggle Dark Mode</span>';
             } else {
                 html.classList.add('dark');
                 localStorage.setItem('theme', 'dark');
-                darkModeToggle.innerHTML = '<i class="fas fa-sun mr-3 text-gray-400"></i><span>Mode Terang</span>';
+                darkModeToggle.innerHTML = '<i class="fas fa-sun mr-2"></i><span>Toggle Light Mode</span>';
             }
         });
-        
+
         // Update toggle text on load
         if (html.classList.contains('dark')) {
-            darkModeToggle.innerHTML = '<i class="fas fa-sun mr-3 text-gray-400"></i><span>Mode Terang</span>';
+            darkModeToggle.innerHTML = '<i class="fas fa-sun mr-2"></i><span>Toggle Light Mode</span>';
         }
     </script>
 </body>
-</html> 
+</html>
