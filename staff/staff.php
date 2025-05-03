@@ -298,7 +298,7 @@ if ($staffResult && $staffResult->num_rows > 0) {
             </div>
 
             <nav id="sidebar-menu" class="hidden lg:block p-6 space-y-4">
-                <a href="../skill/skill.php"
+                <a href="../skill/skill.php?divisi_id=<?= $divisi_id ?>"
                     class="flex items-center text-gray-700 dark:text-gray-300 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition group">
                     <i class="fas fa-arrow-left mr-3 text-gray-500 dark:text-gray-400 group-hover:text-primary-500"></i>
                     <span>Kembali ke Daftar Skill</span>

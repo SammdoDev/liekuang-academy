@@ -66,7 +66,7 @@ $jumlahCabang = $resultCabang->num_rows;
                 </a>
                 
                 <div class="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
-                    <a href="tambah_cabang.php" 
+                    <a href="cabang/tambah_cabang.php" 
                        class="flex items-center text-white bg-primary-600 px-4 py-3 rounded-lg shadow-md hover:bg-primary-700 transition">
                         <i class="fas fa-plus-circle mr-3"></i>
                         <span>Tambah Cabang</span>
