@@ -3,11 +3,6 @@ include '../koneksi.php';
 session_start();
 
 // Cek jika user belum login
-if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
-    header('Location: ../index.php');
-    exit;
-}
-
 // Proses form jika ada POST request
 $message = '';
 $message_type = '';
@@ -96,7 +91,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             </div>
             
             <nav class="p-6 space-y-4">
-                <a href="../cabang.php" class="flex items-center text-gray-700 dark:text-gray-300 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition group">
+                <a href="../cabang/cabang.php" class="flex items-center text-gray-700 dark:text-gray-300 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition group">
                     <i class="fas fa-home mr-3 text-gray-500 dark:text-gray-400 group-hover:text-primary-500"></i>
                     <span>Home</span>
                 </a>

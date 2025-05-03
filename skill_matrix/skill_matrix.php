@@ -210,16 +210,17 @@ $success_message = isset($_GET['success']) && $_GET['success'] == 1 ? "Data berh
             </div>
 
             <nav class="p-6 space-y-4">
-                <a href="cabang.php"
+                <a href="http://localhost/liekuang-academy/staff/staff.php?skill_id=6&divisi_id=1&cabang_id=1"
                     class="flex items-center text-gray-700 dark:text-gray-300 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition group">
                     <i class="fas fa-arrow-left mr-3 text-gray-500 dark:text-gray-400 group-hover:text-primary-500"></i>
                     <span>Kembali</span>
                 </a>
 
+
                 <div class="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
                     <h3 class="text-sm uppercase text-gray-500 dark:text-gray-400 font-semibold mb-3">Navigasi Cepat
                     </h3>
-                    <a href="../cabang.php"
+                    <a href="../cabang/cabang.php"
                         class="flex items-center text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition group">
                         <i class="fas fa-home mr-3 text-gray-500 dark:text-gray-400 group-hover:text-primary-500"></i>
                         <span>Home</span>
@@ -399,7 +400,8 @@ $success_message = isset($_GET['success']) && $_GET['success'] == 1 ? "Data berh
                                             class="<?php echo $bg_class; ?> hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors duration-150">
                                             <td class="px-6 py-4 whitespace-nowrap sticky left-0 <?php echo $bg_class; ?> z-10">
                                                 <div class="text-sm font-medium text-gray-900 dark:text-white">
-                                                    <?php echo htmlspecialchars($staff['nama_staff']); ?></div>
+                                                    <?php echo htmlspecialchars($staff['nama_staff']); ?>
+                                                </div>
                                             </td>
                                             <td class="px-4 py-4 whitespace-nowrap text-center">
                                                 <input type="number" step="0.1" min="0" max="4"

@@ -128,10 +128,10 @@ $jumlahCabang = $resultCabang->num_rows;
                                         <i class="fas fa-ellipsis-v"></i>
                                     </button>
                                     <div class="dropdown-menu hidden absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-10">
-                                        <a href="../edit_cabang.php?id=<?= $cabang['id_cabang'] ?>" class="block px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                        <a href="../cabang/edit_cabang.php?id=<?= $cabang['id_cabang'] ?>" class="block px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
                                             <i class="fas fa-edit mr-2"></i> Edit
                                         </a>
-                                        <a href="../hapus_cabang.php?id=<?= $cabang['id_cabang'] ?>" onclick="return confirm('Anda yakin ingin menghapus cabang ini?')" 
+                                        <a href="../cabang/hapus_cabang.php?id=<?= $cabang['id_cabang'] ?>" onclick="return confirm('Anda yakin ingin menghapus cabang ini?')" 
                                            class="block px-4 py-2 text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700">
                                             <i class="fas fa-trash-alt mr-2"></i> Hapus
                                         </a>

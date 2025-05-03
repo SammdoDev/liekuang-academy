@@ -256,7 +256,14 @@ if ($staffResult && $staffResult->num_rows > 0) {
         }
     </script>
     <style>
-        .rating-value {
+::-webkit-scrollbar{
+    display: none;
+}
+
+        aside{
+            overflow-y: auto;
+        }
+         .rating-value {
             min-width: 3.5rem;
             display: inline-block;
             text-align: center;
@@ -281,6 +288,32 @@ if ($staffResult && $staffResult->num_rows > 0) {
         .hover-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        @media (min-width: 1024px) {
+            aside.lg\:h-screen {
+                display: flex;
+                flex-direction: column;
+            }
+
+            aside .overflow-y-auto {
+                height: 100%;
+                scrollbar-width: thin;
+                scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+            }
+
+            aside .overflow-y-auto::-webkit-scrollbar {
+                width: 4px;
+            }
+
+            aside .overflow-y-auto::-webkit-scrollbar-track {
+                background: transparent;
+            }
+
+            aside .overflow-y-auto::-webkit-scrollbar-thumb {
+                background-color: rgba(156, 163, 175, 0.5);
+                border-radius: 20px;
+            }
         }
     </style>
 </head>
