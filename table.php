@@ -4,6 +4,8 @@ $username = "root";
 $password = "";
 $dbname = "liekuang_academy";
 
+
+
 try {
     $conn = new mysqli($servername, $username, $password);
 
@@ -28,7 +30,7 @@ try {
         password VARCHAR(255) DEFAULT NULL,
         PRIMARY KEY (id_cabang)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci";
-    
+
 
     if (!$conn->query($sql)) {
         throw new Exception("Gagal membuat tabel cabang: " . $conn->error);
@@ -41,7 +43,7 @@ try {
         id_cabang INT,
         FOREIGN KEY (id_cabang) REFERENCES cabang(id_cabang) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci";
-    
+
     if (!$conn->query($sql)) {
         throw new Exception("Gagal membuat tabel divisi: " . $conn->error);
     }
@@ -56,7 +58,7 @@ try {
         FOREIGN KEY (id_divisi) REFERENCES divisi(id_divisi) ON DELETE CASCADE,
         FOREIGN KEY (id_cabang) REFERENCES cabang(id_cabang) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci";
-    
+
     if (!$conn->query($sql)) {
         throw new Exception("Gagal membuat tabel skill: " . $conn->error);
     }
@@ -72,7 +74,7 @@ try {
         FOREIGN KEY (id_divisi) REFERENCES divisi(id_divisi) ON DELETE CASCADE,
         FOREIGN KEY (id_cabang) REFERENCES cabang(id_cabang) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci";
-    
+
     if (!$conn->query($sql)) {
         throw new Exception("Gagal membuat tabel staff: " . $conn->error);
     }
@@ -97,18 +99,18 @@ try {
         FOREIGN KEY (id_divisi) REFERENCES divisi(id_divisi) ON DELETE CASCADE,
         FOREIGN KEY (id_cabang) REFERENCES cabang(id_cabang) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci";
-    
+
     if (!$conn->query($sql)) {
         throw new Exception("Gagal membuat tabel skill_matrix: " . $conn->error);
     }
 
     // Daftar cabang - Pastikan urutan cabang tetap konsisten
     $cabang_list = ['Saidan', 'Solo', 'Sora', 'Grand Edge', 'Soal Rambut'];
-    
+
     // Cek apakah cabang sudah ada dalam database
     $result = $conn->query("SELECT COUNT(*) as count FROM cabang");
     $row = $result->fetch_assoc();
-    
+
     // Hanya masukkan cabang jika tabel kosong
     if ($row['count'] == 0) {
         // Insert cabang berurutan dan dapatkan ID secara eksplisit
@@ -141,7 +143,7 @@ try {
                 $stmt->execute();
             }
         }
-        
+
         echo "✅ Data cabang dan divisi berhasil dimasukkan.<br>";
     } else {
     }
@@ -186,25 +188,26 @@ try {
             // For simplicity, we'll assign a default skill based on division
             $result = $conn->query("SELECT * FROM staff_backup");
             $restored = 0;
-            
+
             while ($staff = $result->fetch_assoc()) {
                 // Find a matching skill for this division
                 $skillQuery = $conn->prepare("SELECT id_skill FROM skill WHERE id_divisi = ? LIMIT 1");
                 $skillQuery->bind_param("i", $staff['id_divisi']);
                 $skillQuery->execute();
                 $skillResult = $skillQuery->get_result();
-                
+
                 if ($skillResult->num_rows > 0) {
                     $skillRow = $skillResult->fetch_assoc();
                     $id_skill = $skillRow['id_skill'];
-                    
+
                     $insertStaff = $conn->prepare("INSERT INTO staff (id_staff, nama_staff, id_skill, id_divisi, id_cabang) 
                                     VALUES (?, ?, ?, ?, ?)");
-                    $insertStaff->bind_param("isiii", 
-                        $staff['id_staff'], 
-                        $staff['nama_staff'], 
+                    $insertStaff->bind_param(
+                        "isiii",
+                        $staff['id_staff'],
+                        $staff['nama_staff'],
                         $id_skill,
-                        $staff['id_divisi'], 
+                        $staff['id_divisi'],
                         $staff['id_cabang']
                     );
                     if ($insertStaff->execute()) {
@@ -212,7 +215,7 @@ try {
                     }
                 }
             }
-            
+
             echo "✅ $restored data staff berhasil dipulihkan.<br>";
         }
 
@@ -243,6 +246,17 @@ try {
 
         // Drop the backup table after restoration
         $conn->query("DROP TABLE IF EXISTS skill_matrix_backup");
+    }
+
+    // Add this code after the skill_matrix table creation:
+    $sql = "CREATE TABLE IF NOT EXISTS users (
+    id_user INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(100) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci";
+
+    if (!$conn->query($sql)) {
+        throw new Exception("Gagal membuat tabel users: " . $conn->error);
     }
 
     // Re-enable foreign key checks

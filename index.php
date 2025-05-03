@@ -1,3 +1,8 @@
+<?php
+include 'koneksi.php';
+include 'table.php';
+
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -71,7 +76,7 @@
         }
         ?>
         
-        <form action="login_process.php" method="post" class="space-y-4">
+        <form action="akses/login_process.php" method="post" class="space-y-4">
             <div>
                 <label for="username" class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">Username</label>
                 <div class="relative">
