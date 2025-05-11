@@ -117,7 +117,7 @@ $total_skills = $result->num_rows;
                 <div class="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
                     <h3 class="text-sm uppercase text-gray-500 dark:text-gray-400 font-semibold mb-3">Navigasi Cepat
                     </h3>
-                    <a href="../cabang.php"
+                    <a href="../cabang/cabang.php"
                         class="flex items-center text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition group">
                         <i class="fas fa-home mr-3 text-gray-500 dark:text-gray-400 group-hover:text-primary-500"></i>
                         <span>Home</span>
@@ -211,11 +211,6 @@ $total_skills = $result->num_rows;
                                         <a href="edit_skill.php?id=<?= $skill['id_skill'] ?>&divisi_id=<?= $divisi_id ?>"
                                             class="block px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
                                             <i class="fas fa-edit mr-2"></i> Edit
-                                        </a>
-                                        <a href="hapus_skill.php?id=<?= $skill['id_skill'] ?>&divisi_id=<?= $divisi_id ?>"
-                                            onclick="return confirm('Anda yakin ingin menghapus skill ini?')"
-                                            class="block px-4 py-2 text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700">
-                                            <i class="fas fa-trash-alt mr-2"></i> Hapus
                                         </a>
                                     </div>
                                 </div>

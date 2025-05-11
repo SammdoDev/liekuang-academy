@@ -1,7 +1,7 @@
 <?php
 include '../koneksi.php';
 
-// Password untuk mengakses dan input nilai - bisa dibuat per cabang
+// Password akan diambil dari divisi
 $access_password = "skillmatrix123"; // Default password
 
 // Validasi parameter 
@@ -30,51 +30,55 @@ $search = isset($_GET['search']) ? trim($_GET['search']) : '';
 $authenticated = false;
 $auth_message = "";
 
+// PERUBAHAN: Ambil password dari divisi
+function getPasswordForDivisi($conn, $divisi_id)
+{
+    // Dalam implementasi nyata, query untuk mengambil password dari database
+    // Untuk contoh ini, gunakan password berdasarkan divisi_id
+    $query = $conn->prepare("SELECT password FROM divisi WHERE id_divisi = ?");
+    $query->bind_param("i", $divisi_id);
+    $query->execute();
+    $result = $query->get_result();
+
+    if ($result->num_rows > 0) {
+        $data = $result->fetch_assoc();
+        return $data['password'] ?? "skillmatrix123"; // Gunakan password dari divisi jika ada
+    }
+
+    return "skillmatrix123"; // Password default
+}
+
 // Handle form login password
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['password_submit'])) {
-    // Verifikasi password sesuai dengan cabang_id
-    $branch_password = getPasswordForBranch($conn, $cabang_id);
+    // PERUBAHAN: Verifikasi password menggunakan fungsi getPasswordForDivisi
+    $divisi_password = getPasswordForDivisi($conn, $divisi_id);
 
-    if ($_POST['password'] === $branch_password) {
+    if ($_POST['password'] === $divisi_password) {
         // Set session untuk autentikasi
         session_start();
         $_SESSION['authenticated'] = true;
-        $_SESSION['cabang_id'] = $cabang_id; // Simpan cabang_id dalam session
+        $_SESSION['divisi_id'] = $divisi_id; // Simpan divisi_id dalam session
         $authenticated = true;
         $auth_message = "Autentikasi berhasil!";
+
+        // Jika ada redirect_staff_id, redirect ke edit_staff.php
+        if (isset($_POST['redirect_staff_id'])) {
+            $staff_id = intval($_POST['redirect_staff_id']);
+            header("Location: edit_staff.php?id_staff=$staff_id&skill_id=$skill_id&divisi_id=$divisi_id");
+            exit;
+        }
     } else {
         $auth_message = "Password salah, silakan coba lagi.";
     }
 } else {
-    // Cek apakah sudah login sebelumnya dan cabang_id sama
+    // Cek apakah sudah login sebelumnya dan divisi_id sama
     session_start();
     if (
         isset($_SESSION['authenticated']) && $_SESSION['authenticated'] === true &&
-        isset($_SESSION['cabang_id']) && $_SESSION['cabang_id'] == $cabang_id
+        isset($_SESSION['divisi_id']) && $_SESSION['divisi_id'] == $divisi_id
     ) {
         $authenticated = true;
     }
-}
-
-// Fungsi untuk mendapatkan password berdasarkan cabang
-function getPasswordForBranch($conn, $cabang_id)
-{
-    // Di sini bisa diterapkan logic untuk mengambil password khusus per cabang dari database
-    // Untuk sementara kita gunakan password default
-    return "skillmatrix123";
-
-    // Implementasi dengan database bisa seperti ini:
-    /*
-    $query = $conn->prepare("SELECT password FROM cabang WHERE id_cabang = ?");
-    $query->bind_param("i", $cabang_id);
-    $query->execute();
-    $result = $query->get_result();
-    if ($result->num_rows > 0) {
-        $data = $result->fetch_assoc();
-        return $data['password'];
-    }
-    return "skillmatrix123"; // Password default
-    */
 }
 
 // Ambil informasi skill dan divisi
@@ -146,7 +150,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['tambah_staff']) && !e
 if (isset($_GET['logout']) && $_GET['logout'] == 'true') {
     session_start();
     unset($_SESSION['authenticated']);
-    unset($_SESSION['cabang_id']);
+    unset($_SESSION['divisi_id']);
     session_destroy();
     header("Location: " . $_SERVER['PHP_SELF'] . "?skill_id=" . $skill_id . "&divisi_id=" . $divisi_id . "&cabang_id=" . $cabang_id);
     exit;
@@ -170,8 +174,7 @@ if (!empty($search)) {
     $paramTypes .= "s";
 }
 
-// Query untuk mengambil data staff beserta nilai rata-rata
-// Gunakan created_at untuk mengurutkan staff (paling lama dulu)
+// Query untuk mengambil data staff beserta nilai rata-rata 
 $query = "
     SELECT 
         s.id_staff, 
@@ -183,7 +186,6 @@ $query = "
     FROM staff s
     WHERE s.id_skill = ? AND s.id_divisi = ? $searchCondition
     ORDER BY s.nama_staff ASC
-
 ";
 
 $staffQuery = $conn->prepare($query);
@@ -219,6 +221,25 @@ if ($staffResult && $staffResult->num_rows > 0) {
             'avg_total' => $row['avg_total']
         ];
     }
+}
+
+// Fungsi untuk mendapatkan detail skill matrix berdasarkan staff dan skill
+function getSkillMatrixDetails($conn, $staff_id, $skill_id)
+{
+    $query = $conn->prepare("
+        SELECT id_skill_matrix, id_staff, id_skill, total_look, konsultasi_komunikasi, 
+               teknik, kerapian_kebersihan, produk_knowledge, rata_rata, catatan 
+        FROM skill_matrix 
+        WHERE id_staff = ? AND id_skill = ? 
+    ");
+    $query->bind_param("ii", $staff_id, $skill_id);
+    $query->execute();
+    $result = $query->get_result();
+
+    if ($result->num_rows > 0) {
+        return $result->fetch_assoc();
+    }
+    return null;
 }
 ?>
 
@@ -256,14 +277,15 @@ if ($staffResult && $staffResult->num_rows > 0) {
         }
     </script>
     <style>
-::-webkit-scrollbar{
-    display: none;
-}
+        ::-webkit-scrollbar {
+            display: none;
+        }
 
-        aside{
+        aside {
             overflow-y: auto;
         }
-         .rating-value {
+
+        .rating-value {
             min-width: 3.5rem;
             display: inline-block;
             text-align: center;
@@ -314,6 +336,48 @@ if ($staffResult && $staffResult->num_rows > 0) {
                 background-color: rgba(156, 163, 175, 0.5);
                 border-radius: 20px;
             }
+        }
+
+        /* Style untuk dropdown menu */
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            right: 0;
+            min-width: 160px;
+            z-index: 1;
+            background-color: white;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+            border-radius: 0.5rem;
+            overflow: hidden;
+        }
+
+        .dark .dropdown-content {
+            background-color: #1F2937;
+        }
+
+        .dropdown-content a {
+            padding: 12px 16px;
+            display: block;
+            text-decoration: none;
+        }
+
+        /* PERUBAHAN: Ubah hover menjadi tampil saat dropdown aktif */
+        .dropdown.active .dropdown-content {
+            display: block;
+        }
+
+        /* PERUBAHAN: Tambahkan style untuk panel detail nilai */
+        .skill-details {
+            display: none;
+        }
+
+        .skill-details.active {
+            display: block;
         }
     </style>
 </head>
@@ -544,7 +608,7 @@ if ($staffResult && $staffResult->num_rows > 0) {
 
                             <?php if (!empty($search)): ?>
                                 <a href="?skill_id=<?= $skill_id ?>&divisi_id=<?= $divisi_id ?>&cabang_id=<?= $cabang_id ?>"
-                                    class="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition flex items-center gap-2">
+                                    class="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-white px-4 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition flex items-center gap-2">
                                     <i class="fas fa-times"></i>
                                     <span>Reset</span>
                                 </a>
@@ -552,192 +616,306 @@ if ($staffResult && $staffResult->num_rows > 0) {
                         </div>
                     </form>
                 </div>
-            </div>
 
-            <!-- Staff List: Card View -->
-            <?php if (count($staffData) > 0): ?>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <?php
-                    $counter = 1;
-                    foreach ($staffData as $staff):
-                        // Format nilai untuk tampilan
-                        $avg_total = number_format($staff['avg_total'], 1);
-                        $ratingClass = "";
-                        if ($staff['avg_total'] >= 3.5) {
-                            $ratingClass = "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300";
-                        } else if ($staff['avg_total'] >= 2.5) {
-                            $ratingClass = "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300";
-                        } else {
-                            $ratingClass = "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300";
-                        }
-                        ?>
+                <!-- Staff Data Table -->
+                <div class="p-6">
+                    <?php if (empty($staffData)): ?>
                         <div
-                            class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 border border-gray-200 dark:border-gray-700 transition duration-300 hover-card">
-                            <div class="flex items-center justify-between mb-4">
-                                <div class="flex items-center">
-                                    <div class="rounded-full bg-primary-100 dark:bg-primary-900/30 p-3">
-                                        <i class="fas fa-user text-primary-600 dark:text-primary-400"></i>
-                                    </div>
-                                    <div class="ml-3">
-                                        <h3 class="font-medium text-gray-900 dark:text-white">
-                                            <?= htmlspecialchars($staff['nama_staff']) ?>
-                                        </h3>
-                                        <p class="text-sm text-gray-500 dark:text-gray-400">Staff #<?= $counter++ ?></p>
-                                    </div>
-                                </div>
-                                <div class="<?= $ratingClass ?> px-3 py-1 rounded-full text-sm font-bold">
-                                    <?= $avg_total ?>
-                                </div>
+                            class="flex flex-col items-center justify-center p-8 text-center bg-gray-50 dark:bg-gray-800 rounded-lg">
+                            <div class="mb-4 text-gray-400 dark:text-gray-500">
+                                <i class="fas fa-user-slash text-5xl"></i>
                             </div>
+                            <?php if (!empty($search)): ?>
+                                <h3 class="text-lg font-medium text-gray-800 dark:text-white mb-2">Tidak ada staff ditemukan
+                                </h3>
+                                <p class="text-gray-500 dark:text-gray-400">Tidak ada staff yang cocok dengan pencarian
+                                    "<?= htmlspecialchars($search) ?>"</p>
+                            <?php else: ?>
+                                <h3 class="text-lg font-medium text-gray-800 dark:text-white mb-2">Belum ada staff terdaftar
+                                </h3>
+                                <p class="text-gray-500 dark:text-gray-400">Tambahkan staff baru untuk skill ini menggunakan
+                                    form di atas</p>
+                            <?php endif; ?>
+                        </div>
+                    <?php else: ?>
+                        <div class="overflow-x-auto">
+                            <table class="w-full border-collapse">
+                                <thead>
+                                    <tr class="bg-gray-100 dark:bg-gray-700 text-left">
+                                        <th class="px-4 py-3 text-gray-700 dark:text-gray-300">No</th>
+                                        <th class="px-4 py-3 text-gray-700 dark:text-gray-300">Nama Staff</th>
+                                        <th class="px-4 py-3 text-gray-700 dark:text-gray-300">Rata-rata</th>
+                                        <th class="px-4 py-3 text-gray-700 dark:text-gray-300">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php $no = 1; ?>
+                                    <?php foreach ($staffData as $staff): ?>
+                                        <?php
+                                        $avg = number_format($staff['avg_total'], 1);
+                                        $colorClass = getColorClass($staff['avg_total']);
+                                        $statusText = "Belum Diisi";
 
-                            <div class="space-y-3 mt-4">
-                                <?php if (!$authenticated): ?>
-                                    <!-- Tombol input nilai dengan popup password jika belum login -->
-                                    <button onclick="showPasswordModal(<?= $staff['id_staff'] ?>)"
-                                        class="w-full bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition flex items-center justify-center gap-2">
-                                        <i class="fas fa-clipboard-list"></i>
-                                        <span>Input Nilai</span>
-                                    </button>
-                                <?php else: ?>
-                                    <!-- Link input nilai jika sudah login -->
-                                    <a href="../skill_matrix/skill_matrix.php?id_staff=<?= $staff['id_staff'] ?>&id_skill=<?= $skill_id ?>&divisi_id=<?= $divisi_id ?>"
-                                        class="w-full bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition flex items-center justify-center gap-2">
-                                        <i class="fas fa-clipboard-list"></i>
-                                        <span>Input Nilai</span>
-                                    </a>
-                                <?php endif; ?>
+                                        if ($staff['avg_total'] > 0) {
+                                            $statusText = $staff['avg_total'] >= 3.5 ? "Baik" : ($staff['avg_total'] >= 2.5 ? "Cukup" : "Kurang");
+                                        }
 
-                                <div class="flex gap-2">
-                                    <a href="edit_staff.php?id_staff=<?= $staff['id_staff'] ?>&skill_id=<?= $skill_id ?>&divisi_id=<?= $divisi_id ?>"
-                                        class="flex-1 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-3 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition flex items-center justify-center gap-1">
-                                        <i class="fas fa-edit"></i>
-                                        <span>Edit</span>
-                                    </a>
-                                    <a href="hapus_staff.php?id_staff=<?= $staff['id_staff'] ?>&skill_id=<?= $skill_id ?>&divisi_id=<?= $divisi_id ?>&confirm=true"
-                                        onclick="return confirm('Apakah Anda yakin ingin menghapus staff ini?');"
-                                        class="flex-1 bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 px-3 py-2 rounded-lg hover:bg-red-200 dark:hover:bg-red-800/50 transition flex items-center justify-center gap-1">
-                                        <i class="fas fa-trash"></i>
-                                        <span>Hapus</span>
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-            <?php else: ?>
-                <div
-                    class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-8 text-center border border-gray-200 dark:border-gray-700">
-                    <div class="flex flex-col items-center">
-                        <div class="bg-gray-100 dark:bg-gray-700 p-6 rounded-full mb-4">
-                            <i class="fas fa-users text-4xl text-gray-400"></i>
-                        </div>
-                        <?php if (!empty($search)): ?>
-                            <h3 class="text-xl font-medium text-gray-800 dark:text-white mb-2">Tidak ada hasil</h3>
-                            <p class="text-gray-500 dark:text-gray-400 mb-6">Tidak ada staff yang cocok dengan pencarian
-                                "<?= htmlspecialchars($search) ?>"</p>
-                            <a href="?skill_id=<?= $skill_id ?>&divisi_id=<?= $divisi_id ?>&cabang_id=<?= $cabang_id ?>"
-                                class="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition flex items-center gap-2">
-                                <i class="fas fa-arrow-left"></i>
-                                <span>Kembali ke semua staff</span>
-                            </a>
-                        <?php else: ?>
-                            <h3 class="text-xl font-medium text-gray-800 dark:text-white mb-2">Belum ada staff</h3>
-                            <p class="text-gray-500 dark:text-gray-400 mb-6">Tambahkan staff baru untuk skill ini</p>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            <?php endif; ?>
+                                        // Get skill matrix details
+                                        $skillMatrixDetails = getSkillMatrixDetails($conn, $staff['id_staff'], $skill_id);
+                                        ?>
+                                        <tr class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
+                                            <td class="px-4 py-3 text-gray-800 dark:text-gray-300"><?= $no++ ?></td>
+                                            <td class="px-4 py-3 text-gray-800 dark:text-gray-300 font-medium">
+                                                <div class="flex items-center">
+                                                    <span><?= htmlspecialchars($staff['nama_staff']) ?></span>
 
-            <!-- Fitur tambahan: Grafik dan statistik -->
-            <?php if (count($staffData) > 0): ?>
-                <div
-                    class="mt-6 bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-gray-200 dark:border-gray-700">
-                    <h2 class="text-xl font-semibold text-gray-800 dark:text-white mb-4">
-                        <i class="fas fa-chart-pie mr-2 text-primary-500"></i>Distribusi Rating Skill
-                    </h2>
-                    <div class="flex flex-wrap justify-around gap-4">
-                        <div class="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg flex-1 text-center">
-                            <div class="text-4xl font-bold text-green-600 dark:text-green-400">
-                                <?php
-                                $highSkill = 0;
-                                foreach ($staffData as $staff) {
-                                    if ($staff['avg_total'] >= 3.5)
-                                        $highSkill++;
-                                }
-                                echo $highSkill;
-                                ?>
-                            </div>
-                            <p class="text-green-800 dark:text-green-300 mt-1">Nilai Tinggi (≥3.5)</p>
+                                                    <?php if ($skillMatrixDetails): ?>
+                                                        <button class="ml-2 text-blue-500 hover:text-blue-700 toggle-details"
+                                                            data-staff-id="<?= $staff['id_staff'] ?>">
+                                                            <i class="fas fa-info-circle"></i>
+                                                        </button>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </td>
+                                            <td class="px-4 py-3">
+                                                <span class="<?= $colorClass ?> text-sm font-medium px-2.5 py-0.5 rounded">
+                                                    <?= $avg ?>
+                                                </span>
+                                            </td>
+                                            <td class="px-4 py-3">
+                                                <?php if ($staff['avg_total'] <= 0): ?>
+                                                    <span
+                                                        class="bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300 text-sm font-medium px-2.5 py-0.5 rounded">
+                                                        <?= $statusText ?>
+                                                    </span>
+                                                <?php elseif ($staff['avg_total'] >= 3.5): ?>
+                                                    <span
+                                                        class="bg-green-100 text-green-800 text-sm font-medium px-2.5 py-0.5 rounded">
+                                                        <?= $statusText ?>
+                                                    </span>
+                                                <?php elseif ($staff['avg_total'] >= 2.5): ?>
+                                                    <span
+                                                        class="bg-yellow-100 text-yellow-800 text-sm font-medium px-2.5 py-0.5 rounded">
+                                                        <?= $statusText ?>
+                                                    </span>
+                                                <?php else: ?>
+                                                    <span class="bg-red-100 text-red-800 text-sm font-medium px-2.5 py-0.5 rounded">
+                                                        <?= $statusText ?>
+                                                    </span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td class="px-4 py-3">
+                                                <div class="flex items-center space-x-2">
+                                                    <div class="dropdown">
+                                                        <button
+                                                            class="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 px-3 py-1 rounded-lg transition-colors dropdown-toggle">
+                                                            <i class="fas fa-ellipsis-v"></i>
+                                                        </button>
+                                                        <div class="dropdown-content">
+                                                            <?php if ($authenticated): ?>
+                                                                <a href="edit_staff.php?id_staff=<?= $staff['id_staff'] ?>&skill_id=<?= $skill_id ?>&divisi_id=<?= $divisi_id ?>&cabang_id=<?= $cabang_id ?>"
+                                                                    class="text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 dark:text-blue-400">
+                                                                    <i class="fas fa-edit w-5 text-center"></i> Edit Data
+                                                                </a>
+                                                            <?php else: ?>
+                                                                <form method="POST" action="">
+                                                                    <input type="hidden" name="redirect_staff_id"
+                                                                        value="<?= $staff['id_staff'] ?>">
+                                                                    <button type="button"
+                                                                        class="auth-required text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 dark:text-blue-400 w-full text-left px-4 py-2">
+                                                                        <i class="fas fa-edit w-5 text-center"></i> Edit Data
+                                                                    </button>
+                                                                </form>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+
+                                        <!-- Skill Matrix Details Panel -->
+                                        <?php if ($skillMatrixDetails): ?>
+                                            <tr class="skill-details" id="details-<?= $staff['id_staff'] ?>">
+                                                <td colspan="5" class="bg-gray-50 dark:bg-gray-800 p-4">
+                                                    <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                                                        <h4 class="font-medium text-gray-800 dark:text-white mb-3">Detail Penilaian
+                                                            untuk <?= htmlspecialchars($staff['nama_staff']) ?></h4>
+
+                                                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                                            <div class="bg-white dark:bg-gray-700 p-3 rounded-lg shadow-sm">
+                                                                <h5 class="text-gray-500 dark:text-gray-400 text-sm mb-1">total look
+                                                                </h5>
+                                                                <div class="flex items-center">
+                                                                    <div class="flex-1">
+                                                                        <div
+                                                                            class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
+                                                                            <div class="bg-blue-500 h-2 rounded-full"
+                                                                                style="width: <?= ($skillMatrixDetails['total_look'] / 4) * 100 ?>%">
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                    <span
+                                                                        class="ml-2 text-gray-800 dark:text-white font-medium"><?= $skillMatrixDetails['total_look'] ?></span>
+                                                                </div>
+                                                            </div>
+
+                                                            <div class="bg-white dark:bg-gray-700 p-3 rounded-lg shadow-sm">
+                                                                <h5 class="text-gray-500 dark:text-gray-400 text-sm mb-1">konsultasi
+                                                                    komunikasi</h5>
+                                                                <div class="flex items-center">
+                                                                    <div class="flex-1">
+                                                                        <div
+                                                                            class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
+                                                                            <div class="bg-green-500 h-2 rounded-full"
+                                                                                style="width: <?= ($skillMatrixDetails['konsultasi_komunikasi'] / 4) * 100 ?>%">
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                    <span
+                                                                        class="ml-2 text-gray-800 dark:text-white font-medium"><?= $skillMatrixDetails['konsultasi_komunikasi'] ?></span>
+                                                                </div>
+                                                            </div>
+
+                                                            <div class="bg-white dark:bg-gray-700 p-3 rounded-lg shadow-sm">
+                                                                <h5 class="text-gray-500 dark:text-gray-400 text-sm mb-1">teknik
+                                                                </h5>
+                                                                <div class="flex items-center">
+                                                                    <div class="flex-1">
+                                                                        <div
+                                                                            class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
+                                                                            <div class="bg-purple-500 h-2 rounded-full"
+                                                                                style="width: <?= ($skillMatrixDetails['teknik'] / 4) * 100 ?>%">
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                    <span
+                                                                        class="ml-2 text-gray-800 dark:text-white font-medium"><?= $skillMatrixDetails['teknik'] ?></span>
+                                                                </div>
+                                                            </div>
+                                                            <div class="bg-white dark:bg-gray-700 p-3 rounded-lg shadow-sm">
+                                                                <h5 class="text-gray-500 dark:text-gray-400 text-sm mb-1">kerapian
+                                                                    kebersihan</h5>
+                                                                <div class="flex items-center">
+                                                                    <div class="flex-1">
+                                                                        <div
+                                                                            class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
+                                                                            <div class="bg-yellow-500 h-2 rounded-full"
+                                                                                style="width: <?= ($skillMatrixDetails['kerapian_kebersihan'] / 4) * 100 ?>%">
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                    <span
+                                                                        class="ml-2 text-gray-800 dark:text-white font-medium"><?= $skillMatrixDetails['kerapian_kebersihan'] ?></span>
+                                                                </div>
+                                                            </div>
+                                                            <div class="bg-white dark:bg-gray-700 p-3 rounded-lg shadow-sm">
+                                                                <h5 class="text-gray-500 dark:text-gray-400 text-sm mb-1">produk
+                                                                    knowledge</h5>
+                                                                <div class="flex items-center">
+                                                                    <div class="flex-1">
+                                                                        <div
+                                                                            class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
+                                                                            <div class="bg-pink-500 h-2 rounded-full"
+                                                                                style="width: <?= ($skillMatrixDetails['produk_knowledge'] / 4) * 100 ?>%">
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                    <span
+                                                                        class="ml-2 text-gray-800 dark:text-white font-medium"><?= $skillMatrixDetails['produk_knowledge'] ?></span>
+                                                                </div>
+                                                            </div>
+
+                                                            <div class="bg-white dark:bg-gray-700 p-3 rounded-lg shadow-sm">
+                                                                <h5 class="text-gray-500 dark:text-gray-400 text-sm mb-1">Rata-rata
+                                                                </h5>
+                                                                <div class="flex items-center">
+                                                                    <div class="flex-1">
+                                                                        <div
+                                                                            class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
+                                                                            <div class="bg-primary-500 h-2 rounded-full"
+                                                                                style="width: <?= ($skillMatrixDetails['rata_rata'] / 4) * 100 ?>%">
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                    <span
+                                                                        class="ml-2 text-gray-800 dark:text-white font-medium"><?= number_format($skillMatrixDetails['rata_rata'], 1) ?></span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <!-- Updated Notes Section - Made more visible with improved styling -->
+                                                        <div class="mt-4 bg-white dark:bg-gray-700 p-4 rounded-lg shadow-sm">
+                                                            <h5 class="text-gray-700 dark:text-gray-300 font-medium mb-2">
+                                                                <i class="fas fa-comment-alt mr-2 text-primary-500"></i>Catatan
+                                                            </h5>
+                                                            <?php if (!empty($skillMatrixDetails['catatan'])): ?>
+                                                                <div
+                                                                    class="bg-gray-50 dark:bg-gray-600 p-3 rounded border-l-4 border-primary-500">
+                                                                    <p class="text-gray-800 dark:text-white whitespace-pre-line">
+                                                                        <?= htmlspecialchars($skillMatrixDetails['catatan']) ?>
+                                                                    </p>
+                                                                </div>
+                                                            <?php else: ?>
+                                                                <p class="text-gray-500 dark:text-gray-400 italic">
+                                                                    <i class="fas fa-info-circle mr-1"></i>Tidak ada catatan untuk staff
+                                                                    ini
+                                                                </p>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        <?php endif; ?>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
                         </div>
-                        <div class="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg flex-1 text-center">
-                            <div class="text-4xl font-bold text-yellow-600 dark:text-yellow-400">
-                                <?php
-                                $mediumSkill = 0;
-                                foreach ($staffData as $staff) {
-                                    if ($staff['avg_total'] >= 2.5 && $staff['avg_total'] < 3.5)
-                                        $mediumSkill++;
-                                }
-                                echo $mediumSkill;
-                                ?>
-                            </div>
-                            <p class="text-yellow-800 dark:text-yellow-300 mt-1">Nilai Sedang (2.5-3.4)</p>
-                        </div>
-                        <div class="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg flex-1 text-center">
-                            <div class="text-4xl font-bold text-red-600 dark:text-red-400">
-                                <?php
-                                $lowSkill = 0;
-                                foreach ($staffData as $staff) {
-                                    if ($staff['avg_total'] < 2.5)
-                                        $lowSkill++;
-                                }
-                                echo $lowSkill;
-                                ?>
-                            </div>
-                            <p class="text-red-800 dark:text-red-300 mt-1">Nilai Rendah (<2.5)< /p>
-                        </div>
-                    </div>
+                    <?php endif; ?>
                 </div>
-            <?php endif; ?>
+            </div>
         </main>
     </div>
 
-    <!-- Modal Password untuk Input Nilai -->
-    <div id="passwordModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
-        <div class="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-md animate-fadeIn">
+    <!-- Authentication Modal -->
+    <div id="authModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+        <div class="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6 animate-fadeIn">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-medium text-gray-800 dark:text-white">Login untuk Input Nilai</h3>
-                <button onclick="hidePasswordModal()"
-                    class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                <h3 class="text-xl font-bold text-gray-800 dark:text-white">Otentikasi Diperlukan</h3>
+                <button id="closeAuthModal"
+                    class="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <p class="mb-4 text-gray-600 dark:text-gray-400">Masukkan password untuk input nilai staff cabang
-                <?= htmlspecialchars($nama_cabang) ?>.
+
+            <p class="text-gray-600 dark:text-gray-300 mb-4">
+                Untuk melakukan operasi ini, silakan masukkan password divisi.
             </p>
-            <form method="POST"
-                action="<?= $_SERVER['PHP_SELF'] ?>?skill_id=<?= $skill_id ?>&divisi_id=<?= $divisi_id ?>&cabang_id=<?= $cabang_id ?>"
-                id="passwordForm">
-                <input type="hidden" name="redirect_staff_id" id="redirect_staff_id">
+
+            <form method="POST">
+                <input type="hidden" id="redirectStaffId" name="redirect_staff_id" value="">
+
                 <div class="mb-4">
+                    <label for="password" class="block text-gray-700 dark:text-gray-300 mb-2">Password:</label>
                     <div class="relative">
-                        <span
-                            class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-500 dark:text-gray-400">
-                            <i class="fas fa-lock"></i>
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3">
+                            <i class="fas fa-lock text-gray-500 dark:text-gray-400"></i>
                         </span>
-                        <input type="password" name="password" id="admin_password" placeholder="Masukkan password"
-                            required
+                        <input type="password" id="password" name="password" required
                             class="pl-10 pr-4 py-2 w-full border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                     </div>
-                    <p id="passwordError" class="text-red-600 text-sm mt-1 hidden">Password tidak boleh kosong</p>
                 </div>
+
+                <?php if (!empty($auth_message)): ?>
+                    <div
+                        class="mb-4 p-3 rounded-lg <?= strpos($auth_message, "berhasil") !== false ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' ?>">
+                        <?= htmlspecialchars($auth_message) ?>
+                    </div>
+                <?php endif; ?>
+
                 <div class="flex justify-end">
-                    <button type="button" onclick="hidePasswordModal()"
-                        class="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition mr-2">
-                        Batal
-                    </button>
                     <button type="submit" name="password_submit"
                         class="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition">
-                        Login
+                        <i class="fas fa-unlock mr-2"></i> Verifikasi
                     </button>
                 </div>
             </form>
@@ -745,102 +923,92 @@ if ($staffResult && $staffResult->num_rows > 0) {
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            // Mobile menu toggle
-            const mobileMenuButton = document.getElementById('mobile-menu-button');
+        // Toggle mobile menu
+        document.getElementById('mobile-menu-button').addEventListener('click', function () {
             const sidebarMenu = document.getElementById('sidebar-menu');
+            sidebarMenu.classList.toggle('hidden');
+        });
 
-            if (mobileMenuButton) {
-                mobileMenuButton.addEventListener('click', function () {
-                    sidebarMenu.classList.toggle('hidden');
-                });
-            }
+        // Dark mode toggle
+        document.getElementById('darkModeToggle').addEventListener('click', function () {
+            document.documentElement.classList.toggle('dark');
+            localStorage.setItem('darkMode', document.documentElement.classList.contains('dark'));
+        });
 
-            // Dark mode toggle
-            const darkModeToggle = document.getElementById('darkModeToggle');
+        // Check for saved dark mode preference
+        if (localStorage.getItem('darkMode') === 'true' ||
+            (!localStorage.getItem('darkMode') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        }
 
-            // Check for saved theme preference or use system preference
-            if (localStorage.getItem('darkMode') === 'true' ||
-                (!localStorage.getItem('darkMode') &&
-                    window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-                document.documentElement.classList.add('dark');
-            }
+        // Authentication modal handling
+        const authModal = document.getElementById('authModal');
+        const closeAuthModal = document.getElementById('closeAuthModal');
+        const authRequiredButtons = document.querySelectorAll('.auth-required');
+        const redirectStaffIdInput = document.getElementById('redirectStaffId');
 
-            if (darkModeToggle) {
-                darkModeToggle.addEventListener('click', function () {
-                    document.documentElement.classList.toggle('dark');
-                    localStorage.setItem('darkMode',
-                        document.documentElement.classList.contains('dark') ? 'true' : 'false');
-                });
-            }
-
-            // Update icon in dark mode toggle button
-            function updateDarkModeIcon() {
-                const icon = darkModeToggle.querySelector('i');
-                if (document.documentElement.classList.contains('dark')) {
-                    icon.classList.remove('fa-moon');
-                    icon.classList.add('fa-sun');
-                    darkModeToggle.querySelector('span').textContent = 'Mode Terang';
-                } else {
-                    icon.classList.remove('fa-sun');
-                    icon.classList.add('fa-moon');
-                    darkModeToggle.querySelector('span').textContent = 'Mode Gelap';
+        authRequiredButtons.forEach(button => {
+            button.addEventListener('click', function () {
+                // If there's a hidden staff_id input in the form, get its value
+                const staffIdInput = this.closest('form')?.querySelector('input[name="redirect_staff_id"]');
+                if (staffIdInput) {
+                    redirectStaffIdInput.value = staffIdInput.value;
                 }
-            }
+                authModal.classList.remove('hidden');
+            });
+        });
 
-            if (darkModeToggle) {
-                updateDarkModeIcon();
-                darkModeToggle.addEventListener('click', updateDarkModeIcon);
-            }
+        closeAuthModal.addEventListener('click', function () {
+            authModal.classList.add('hidden');
+        });
 
-            // Auto-hide notifications after 5 seconds
-            const notifications = document.querySelectorAll('.animate-fadeIn');
-            if (notifications.length > 0) {
-                setTimeout(() => {
-                    notifications.forEach(notification => {
-                        notification.style.opacity = '0';
-                        notification.style.transform = 'translateY(-10px)';
-                        notification.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
-                        setTimeout(() => notification.remove(), 500);
-                    });
-                }, 10000);
+        // Hide modal when clicking outside
+        window.addEventListener('click', function (event) {
+            if (event.target === authModal) {
+                authModal.classList.add('hidden');
             }
         });
 
-        // Password modal functions
-        function showPasswordModal(staffId) {
-            document.getElementById('passwordModal').classList.remove('hidden');
-            document.getElementById('redirect_staff_id').value = staffId;
-            document.getElementById('admin_password').focus();
-        }
+        // Toggle dropdowns
+        document.querySelectorAll('.dropdown-toggle').forEach(button => {
+            button.addEventListener('click', function (e) {
+                e.stopPropagation(); // Prevent event bubbling
+                const dropdown = this.parentElement;
+                dropdown.classList.toggle('active');
 
-        function hidePasswordModal() {
-            document.getElementById('passwordModal').classList.add('hidden');
-            document.getElementById('admin_password').value = '';
-            document.getElementById('passwordError').classList.add('hidden');
-        }
-
-        // Form validation
-        document.getElementById('passwordForm')?.addEventListener('submit', function (event) {
-            const password = document.getElementById('admin_password').value;
-            if (!password.trim()) {
-                event.preventDefault();
-                document.getElementById('passwordError').classList.remove('hidden');
-            }
+                // Close other dropdowns
+                document.querySelectorAll('.dropdown.active').forEach(activeDropdown => {
+                    if (activeDropdown !== dropdown) {
+                        activeDropdown.classList.remove('active');
+                    }
+                });
+            });
         });
 
-        // Close modal when clicking outside
-        document.getElementById('passwordModal')?.addEventListener('click', function (event) {
-            if (event.target === this) {
-                hidePasswordModal();
-            }
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', function () {
+            document.querySelectorAll('.dropdown.active').forEach(dropdown => {
+                dropdown.classList.remove('active');
+            });
         });
 
-        // Handle escape key to close modal
-        document.addEventListener('keydown', function (event) {
-            if (event.key === 'Escape' && !document.getElementById('passwordModal')?.classList.contains('hidden')) {
-                hidePasswordModal();
-            }
+        // Toggle skill details
+        document.querySelectorAll('.toggle-details').forEach(button => {
+            button.addEventListener('click', function () {
+                const staffId = this.getAttribute('data-staff-id');
+                const detailsRow = document.getElementById('details-' + staffId);
+                detailsRow.classList.toggle('active');
+
+                // Update icon
+                const icon = this.querySelector('i');
+                if (detailsRow.classList.contains('active')) {
+                    icon.classList.remove('fa-info-circle');
+                    icon.classList.add('fa-chevron-up');
+                } else {
+                    icon.classList.remove('fa-chevron-up');
+                    icon.classList.add('fa-info-circle');
+                }
+            });
         });
     </script>
 </body>

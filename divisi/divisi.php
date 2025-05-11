@@ -1,6 +1,10 @@
 <?php
 include '../koneksi.php';
 
+// Cek apakah ada sesi admin yang aktif
+session_start();
+$is_admin = isset($_SESSION['admin']) && $_SESSION['admin'] === true;
+
 if (!isset($_GET['cabang_id'])) {
     die("Cabang tidak ditemukan!");
 }
@@ -26,6 +30,36 @@ $resultDivisi = $queryDivisi->get_result();
 
 // Hitung jumlah divisi
 $jumlahDivisi = $resultDivisi->num_rows;
+
+// Handle divisi password verification
+$divisi_access = [];
+if (isset($_SESSION['divisi_access'])) {
+    $divisi_access = $_SESSION['divisi_access'];
+}
+
+// Handle password submission
+$error_msg = "";
+$success_msg = "";
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['divisi_id']) && isset($_POST['password'])) {
+    $divisi_id = intval($_POST['divisi_id']);
+    $password = $_POST['password'];
+    
+    // Verify password
+    $query = $conn->prepare("SELECT id_divisi FROM divisi WHERE id_divisi = ? AND password = ?");
+    $query->bind_param("is", $divisi_id, $password);
+    $query->execute();
+    $result = $query->get_result();
+    
+    if ($result->num_rows > 0) {
+        // Password correct, grant access
+        $divisi_access[] = $divisi_id;
+        $_SESSION['divisi_access'] = $divisi_access;
+        $success_msg = "Akses diberikan!";
+    } else {
+        $error_msg = "Password salah!";
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -63,11 +97,82 @@ $jumlahDivisi = $resultDivisi->num_rows;
 </head>
 
 <body class="bg-gray-50 dark:bg-gray-900 min-h-screen">
+    <!-- Notifikasi -->
+    <?php if ($error_msg): ?>
+    <div id="error-alert" class="fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center">
+        <i class="fas fa-exclamation-circle mr-2"></i>
+        <?= $error_msg ?>
+        <button onclick="document.getElementById('error-alert').style.display='none'" class="ml-4 text-white">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    <script>
+        setTimeout(() => {
+            document.getElementById('error-alert').style.display = 'none';
+        }, 5000);
+    </script>
+    <?php endif; ?>
+
+    <?php if ($success_msg): ?>
+    <div id="success-alert" class="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center">
+        <i class="fas fa-check-circle mr-2"></i>
+        <?= $success_msg ?>
+        <button onclick="document.getElementById('success-alert').style.display='none'" class="ml-4 text-white">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    <script>
+        setTimeout(() => {
+            document.getElementById('success-alert').style.display = 'none';
+        }, 5000);
+    </script>
+    <?php endif; ?>
+
+    <!-- Modal Password -->
+    <div id="passwordModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold text-gray-800 dark:text-white">Masukkan Password</h3>
+                <button onclick="closePasswordModal()" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <p class="text-gray-600 dark:text-gray-400 mb-4">Divisi ini dilindungi password. Masukkan password untuk mengakses.</p>
+            
+            <form id="passwordForm" method="POST" action="">
+                <input type="hidden" id="divisiIdInput" name="divisi_id" value="">
+                <div class="mb-4">
+                    <label for="password" class="block text-gray-700 dark:text-gray-300 mb-2">Password</label>
+                    <input type="password" id="password" name="password" 
+                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+                           required>
+                </div>
+                <div class="flex justify-end">
+                    <button type="button" onclick="closePasswordModal()" 
+                            class="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg mr-2">
+                        Batal
+                    </button>
+                    <button type="submit" 
+                            class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700">
+                        Masuk
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div class="flex flex-col lg:flex-row min-h-screen">
         <!-- Sidebar -->
         <aside class="w-full lg:w-64 bg-white dark:bg-gray-800 shadow-md">
             <div class="p-6 border-b border-gray-200 dark:border-gray-700">
                 <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Dashboard</h2>
+                <?php if ($is_admin): ?>
+                    <div class="mt-2 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-sm px-3 py-1 rounded-full inline-flex items-center">
+                        <i class="fas fa-shield-alt mr-1"></i>
+                        Admin Mode
+                    </div>
+                <?php endif; ?>
             </div>
 
             <nav class="p-6 space-y-4">
@@ -81,6 +186,20 @@ $jumlahDivisi = $resultDivisi->num_rows;
                     <i class="fas fa-plus-circle mr-3"></i>
                     <span>Tambah Divisi</span>
                 </a>
+
+                <?php if ($is_admin): ?>
+                <a href="../login/admin_login.php?action=logout" 
+                    class="flex items-center text-gray-700 dark:text-gray-300 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition group mt-2">
+                    <i class="fas fa-sign-out-alt mr-3 text-gray-500 dark:text-gray-400 group-hover:text-primary-500"></i>
+                    <span>Keluar dari Mode Admin</span>
+                </a>
+                <?php else: ?>
+                <a href="../login/admin_login.php" 
+                    class="flex items-center text-gray-700 dark:text-gray-300 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition group mt-2">
+                    <i class="fas fa-user-shield mr-3 text-gray-500 dark:text-gray-400 group-hover:text-primary-500"></i>
+                    <span>Login Admin</span>
+                </a>
+                <?php endif; ?>
 
                 <div class="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
                     <h3 class="text-sm uppercase text-gray-500 dark:text-gray-400 font-semibold mb-3">Navigasi Cepat
@@ -134,14 +253,22 @@ $jumlahDivisi = $resultDivisi->num_rows;
                     // Reset pointer to the beginning
                     $resultDivisi->data_seek(0);
                     while ($divisi = $resultDivisi->fetch_assoc()):
-                        ?>
+                        // Check if admin or has access to this divisi
+                        $has_access = $is_admin || in_array($divisi['id_divisi'], $divisi_access);
+                        $has_password = !empty($divisi['password']);
+                    ?>
                         <div
                             class="divisi-card p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-all duration-300 flex flex-col">
                             <div class="flex items-start justify-between">
                                 <div>
-                                    <h2 class="text-xl font-semibold text-gray-800 dark:text-white">
-                                        <?= htmlspecialchars($divisi['nama_divisi']) ?>
-                                    </h2>
+                                    <div class="flex items-center">
+                                        <h2 class="text-xl font-semibold text-gray-800 dark:text-white">
+                                            <?= htmlspecialchars($divisi['nama_divisi']) ?>
+                                        </h2>
+                                        <?php if ($has_password && !$is_admin): ?>
+                                        <i class="fas fa-lock ml-2 text-gray-500 dark:text-gray-400" title="Dilindungi password"></i>
+                                        <?php endif; ?>
+                                    </div>
                                     <?php if (!empty($divisi['deskripsi'])): ?>
                                         <p class="text-gray-600 dark:text-gray-400 mt-2 text-sm">
                                             <?= nl2br(htmlspecialchars($divisi['deskripsi'] ?? 'Tidak ada deskripsi')) ?>
@@ -163,6 +290,12 @@ $jumlahDivisi = $resultDivisi->num_rows;
                                             class="block px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
                                             <i class="fas fa-edit mr-2"></i> Edit
                                         </a>
+                                        <?php if ($is_admin): ?>
+                                        <a href="set_divisi_password.php?id=<?= $divisi['id_divisi'] ?>"
+                                            class="block px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                            <i class="fas fa-key mr-2"></i> Set Password
+                                        </a>
+                                        <?php endif; ?>
                                         <a href="hapus_divisi.php?id=<?= $divisi['id_divisi'] ?>"
                                             onclick="return confirm('Anda yakin ingin menghapus divisi ini?')"
                                             class="block px-4 py-2 text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700">
@@ -174,10 +307,17 @@ $jumlahDivisi = $resultDivisi->num_rows;
 
                             <div class="mt-auto pt-4">
                                 <div class="flex space-x-2">
+                                    <?php if ($has_access): ?>
                                     <a href="../skill/skill.php?divisi_id=<?= $divisi['id_divisi'] ?>"
                                         class="w-full bg-primary-600 text-white px-4 py-2 rounded-lg text-center hover:bg-primary-700 transition flex items-center justify-center">
                                         <i class="fas fa-laptop-code mr-2"></i> Kelola Skill
                                     </a>
+                                    <?php else: ?>
+                                    <button onclick="showPasswordModal(<?= $divisi['id_divisi'] ?>)"
+                                        class="w-full bg-gray-600 text-white px-4 py-2 rounded-lg text-center hover:bg-gray-700 transition flex items-center justify-center">
+                                        <i class="fas fa-lock mr-2"></i> Masukkan Password
+                                    </button>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         </div>
@@ -204,6 +344,16 @@ $jumlahDivisi = $resultDivisi->num_rows;
     </div>
 
     <script>
+        // Password modal functions
+        function showPasswordModal(divisiId) {
+            document.getElementById('divisiIdInput').value = divisiId;
+            document.getElementById('passwordModal').classList.remove('hidden');
+        }
+        
+        function closePasswordModal() {
+            document.getElementById('passwordModal').classList.add('hidden');
+        }
+        
         // Dropdown toggle
         document.querySelectorAll('.dropdown').forEach(dropdown => {
             const btn = dropdown.querySelector('button');

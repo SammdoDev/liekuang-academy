@@ -344,7 +344,7 @@ function get_skill_list($conn, $divisi_id = null, $cabang_id = null) {
 }
 
 // Fungsi untuk update skill matrix
-function update_skill_matrix($conn, $id_skill, $total_look, $konsultasi_komunikasi, $teknik, $kerapian_kebersihan, $produk_knowledge) {
+function update_skill_matrix($conn, $id_skill, $total_look, $konsultasi_komunikasi, $teknik, $kerapian_kebersihan, $produk_knowledge, $catatan) {
     // Dapatkan skill untuk mendapatkan id_divisi dan id_cabang
     $stmt0 = $conn->prepare("SELECT id_divisi, id_cabang FROM skill WHERE id_skill = ?");
     $stmt0->bind_param("i", $id_skill);
@@ -370,12 +370,12 @@ function update_skill_matrix($conn, $id_skill, $total_look, $konsultasi_komunika
     
     if ($result->num_rows === 0) {
         // Buat baru jika belum ada
-        $stmt = $conn->prepare("INSERT INTO skill_matrix (id_skill, id_divisi, id_cabang, total_look, konsultasi_komunikasi, teknik, kerapian_kebersihan, produk_knowledge) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param("iiiddddd", $id_skill, $id_divisi, $id_cabang, $total_look, $konsultasi_komunikasi, $teknik, $kerapian_kebersihan, $produk_knowledge);
+        $stmt = $conn->prepare("INSERT INTO skill_matrix (id_skill, id_divisi, id_cabang, total_look, konsultasi_komunikasi, teknik, kerapian_kebersihan, produk_knowledge, catatan) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("iiiddddd", $id_skill, $id_divisi, $id_cabang, $total_look, $konsultasi_komunikasi, $teknik, $kerapian_kebersihan, $produk_knowledge, $catatan);
     } else {
         // Update jika sudah ada
         $stmt = $conn->prepare("UPDATE skill_matrix SET total_look = ?, konsultasi_komunikasi = ?, teknik = ?, kerapian_kebersihan = ?, produk_knowledge = ? WHERE id_skill = ?");
-        $stmt->bind_param("dddddi", $total_look, $konsultasi_komunikasi, $teknik, $kerapian_kebersihan, $produk_knowledge, $id_skill);
+        $stmt->bind_param("dddddi", $total_look, $konsultasi_komunikasi, $teknik, $kerapian_kebersihan, $produk_knowledge, $catatan, $id_skill);
     }
     
     if ($stmt->execute()) {

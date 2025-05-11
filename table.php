@@ -41,6 +41,7 @@ try {
         id_divisi INT AUTO_INCREMENT PRIMARY KEY,
         nama_divisi VARCHAR(100) NOT NULL,
         id_cabang INT,
+        password VARCHAR(255) DEFAULT NULL,
         FOREIGN KEY (id_cabang) REFERENCES cabang(id_cabang) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci";
 
@@ -91,6 +92,7 @@ try {
         teknik FLOAT DEFAULT 0,
         kerapian_kebersihan FLOAT DEFAULT 0,
         produk_knowledge FLOAT DEFAULT 0,
+        catatan TEXT DEFAULT NULL,
         rata_rata FLOAT GENERATED ALWAYS AS (
             (total_look + konsultasi_komunikasi + teknik + kerapian_kebersihan + produk_knowledge) / 5
         ) STORED,
@@ -144,7 +146,6 @@ try {
             }
         }
 
-        echo "✅ Data cabang dan divisi berhasil dimasukkan.<br>";
     } else {
     }
 
