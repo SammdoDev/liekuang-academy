@@ -701,7 +701,7 @@ function getSkillMatrixDetails($conn, $staff_id, $skill_id)
                                                 <?php else: ?>
                                                     <span class="bg-red-100 text-red-800 text-sm font-medium px-2.5 py-0.5 rounded">
                                                         <?= $statusText ?>
-                                                    </span>
+                                                    </span> 
                                                 <?php endif; ?>
                                             </td>
                                             <td class="px-4 py-3">

@@ -1,63 +1,34 @@
 <?php
-include '../koneksi.php';
+include '../../koneksi.php';
+session_start();
+// More robust branch ID validation
+$cabang_id = isset($_GET['cabang_id']) ? intval($_GET['cabang_id']) : null;
 
-if (!isset($_GET['divisi_id'])) {
-    die("Divisi tidak ditemukan!");
+if ($cabang_id === null) {
+$_SESSION['error_message'] = "ID Cabang tidak valid!";
+header("Location: ../cabang/cabang.php");
+exit();
 }
-
-$divisi_id = intval($_GET['divisi_id']);
-
-// Get the division name and branch info
-$divisi_query = $conn->prepare("
-    SELECT d.nama_divisi, c.nama_cabang, c.id_cabang
-    FROM divisi d
-    JOIN cabang c ON d.id_cabang = c.id_cabang
-    WHERE d.id_divisi = ?
-");
-$divisi_query->bind_param("i", $divisi_id);
-$divisi_query->execute();
-$divisi_result = $divisi_query->get_result();
-
-if ($divisi_result->num_rows > 0) {
-    $divisi_data = $divisi_result->fetch_assoc();
-    $divisi_name = $divisi_data['nama_divisi'];
-    $divisi_desc = $divisi_data['deskripsi'] ?? '';
-    $cabang_name = $divisi_data['nama_cabang'];
-    $cabang_id = $divisi_data['id_cabang'];
-} else {
-    $divisi_name = 'Unknown Division';
-    $divisi_desc = '';
-    $cabang_name = 'Unknown Branch';
-    $cabang_id = 0;
+// Additional validation for branch existence
+$queryCabang = $conn->prepare("SELECT id_cabang, nama_cabang FROM cabang WHERE id_cabang = ?");
+$queryCabang->bind_param("i", $cabang_id);
+$queryCabang->execute();
+$resultCabang = $queryCabang->get_result();
+if ($resultCabang->num_rows === 0) {
+$_SESSION['error_message'] = "Cabang tidak ditemukan!";
+header("Location: ../cabang/cabang.php");
+exit();
 }
-
-// Modified query to remove average rating calculation
-$query = $conn->prepare("
-    SELECT s.*, 
-           COUNT(DISTINCT st.id_staff) as jumlah_staff
-    FROM skill s
-    LEFT JOIN staff st ON s.id_skill = st.id_skill
-    WHERE s.id_divisi = ?
-    GROUP BY s.id_skill
-");
-$query->bind_param("i", $divisi_id);
-$query->execute();
-$result = $query->get_result();
-
-// Get the total staff count for this division
-$staff_count_query = $conn->prepare("
-    SELECT COUNT(*) as total
-    FROM staff
-    WHERE id_divisi = ?
-");
-$staff_count_query->bind_param("i", $divisi_id);
-$staff_count_query->execute();
-$staff_count_result = $staff_count_query->get_result();
-$staff_count_data = $staff_count_result->fetch_assoc();
-$total_staff = $staff_count_data['total'] ?? 0;
-
-// Count total skills
-$total_skills = $result->num_rows;
+$cabang = $resultCabang->fetch_assoc();
+// CRITICAL FIX: Query to fetch divisions for this specific branch
+$queryDivisi = $conn->prepare("SELECT * FROM divisi WHERE id_cabang = ?");
+$queryDivisi->bind_param("i", $cabang_id);
+$queryDivisi->execute();
+$resultDivisi = $queryDivisi->get_result();
+$jumlahDivisi = $resultDivisi->num_rows;
+// Ensure divisi_access is set
+$divisi_access = $_SESSION['divisi_access'] ?? [];
+// Rest of the existing code remains the same...
 ?>
 
 <!DOCTYPE html>
@@ -66,7 +37,7 @@ $total_skills = $result->num_rows;
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Daftar Skill - <?= htmlspecialchars($divisi_name) ?></title>
+    <title>Divisi - <?= htmlspecialchars($cabang['nama_cabang']) ?></title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script>
@@ -98,21 +69,19 @@ $total_skills = $result->num_rows;
     <div class="flex flex-col lg:flex-row min-h-screen">
         <!-- Sidebar -->
         <aside class="w-full lg:w-64 bg-white dark:bg-gray-800 shadow-md">
-            <div class="p-6 border-b border-gray-200 dark:border-gray-700">
-                <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Dashboard</h2>
-            </div>
 
             <nav class="p-6 space-y-4">
-                <a href="../divisi/divisi.php?cabang_id=<?= $cabang_id ?>"
+                <a href="../cabang/cabang.php"
                     class="flex items-center text-gray-700 dark:text-gray-300 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition group">
                     <i class="fas fa-arrow-left mr-3 text-gray-500 dark:text-gray-400 group-hover:text-primary-500"></i>
-                    <span>Kembali ke Divisi</span>
+                    <span>Kembali ke Cabang</span>
                 </a>
-                <a href="tambah_skill.php?divisi_id=<?= $divisi_id ?>"
+                <a href="tambah_divisi.php?cabang_id=<?= $cabang_id ?>"
                     class="flex items-center text-white bg-primary-600 px-4 py-3 rounded-lg shadow-md hover:bg-primary-700 transition">
                     <i class="fas fa-plus-circle mr-3"></i>
-                    <span>Tambah Skill</span>
+                    <span>Tambah Divisi</span>
                 </a>
+
 
                 <div class="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
                     <h3 class="text-sm uppercase text-gray-500 dark:text-gray-400 font-semibold mb-3">Navigasi Cepat
@@ -122,13 +91,11 @@ $total_skills = $result->num_rows;
                         <i class="fas fa-home mr-3 text-gray-500 dark:text-gray-400 group-hover:text-primary-500"></i>
                         <span>Home</span>
                     </a>
-                    <form action="../logout.php" method="POST">
-                        <button type="submit"
-                            class="mt-4 w-full flex items-center justify-start text-red-600 px-4 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-gray-700 transition">
-                            <i class="fas fa-sign-out-alt mr-3"></i>
-                            <span>Logout</span>
-                        </button>
-                    </form>
+                    <a href="karyawan.php?cabang_id=<?php echo $cabang_id; ?>"
+                        class="flex items-center text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition group">
+                        <i class="fas fa-users mr-3 text-gray-500 dark:text-gray-400 group-hover:text-primary-500"></i>
+                        <span>Karyawan</span>
+                    </a>
 
                 </div>
             </nav>
@@ -146,63 +113,43 @@ $total_skills = $result->num_rows;
         <main class="flex-1 p-6 lg:p-8">
             <div class="flex flex-col md:flex-row md:items-center justify-between mb-8">
                 <div>
-                    <div class="flex items-center space-x-3">
-                        <h1 class="text-3xl font-bold text-gray-800 dark:text-white">
-                            <?= htmlspecialchars($divisi_name) ?>
-                        </h1>
-                        <span
-                            class="bg-primary-100 text-primary-800 text-sm font-medium px-3 py-1 rounded-full dark:bg-primary-900 dark:text-primary-300">
-                            <?= htmlspecialchars($cabang_name) ?>
-                        </span>
-                    </div>
-
-                    <?php if (!empty($divisi_desc)): ?>
-                        <p class="text-gray-600 dark:text-gray-400 mt-2">
-                            <?= nl2br(htmlspecialchars($divisi_desc)) ?>
-                        </p>
-                    <?php endif; ?>
-
-                    <div class="flex items-center space-x-4 mt-3">
-                        <p class="text-gray-600 dark:text-gray-400 flex items-center">
-                            <i class="fas fa-users mr-2 text-primary-500"></i>
-                            <?= $total_staff ?> staff
-                        </p>
-                        <p class="text-gray-600 dark:text-gray-400 flex items-center">
-                            <i class="fas fa-laptop-code mr-2 text-primary-500"></i>
-                            <?= $total_skills ?> skills
-                        </p>
-                    </div>
+                    <h1 class="text-3xl font-bold text-gray-800 dark:text-white mb-2">Divisi -
+                        <?= htmlspecialchars($cabang['nama_cabang']) ?>
+                    </h1>
+                    <p class="text-gray-600 dark:text-gray-400">
+                        <i class="fas fa-layer-group mr-2"></i>
+                        Total: <?= $jumlahDivisi ?> divisi
+                    </p>
                 </div>
 
                 <div class="mt-4 md:mt-0">
                     <div class="relative">
-                        <input type="text" id="searchSkill" placeholder="Cari skill..."
+                        <input type="text" id="searchDivisi" placeholder="Cari divisi..."
                             class="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500">
                         <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
                     </div>
                 </div>
             </div>
 
-            <?php if ($result->num_rows > 0): ?>
+            <?php if ($resultDivisi->num_rows > 0): ?>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <?php
                     // Reset pointer to the beginning
-                    $result->data_seek(0);
-                    while ($skill = $result->fetch_assoc()):
+                    $resultDivisi->data_seek(0);
+                    while ($divisi = $resultDivisi->fetch_assoc()):
+                        // Check if admin or has access to this divisi
+                        $has_access = in_array($divisi['id_divisi'], $divisi_access);
+
+                        $has_password = !empty($divisi['password']);
                         ?>
                         <div
-                            class="skill-card p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-all duration-300 flex flex-col">
+                            class="divisi-card p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-all duration-300 flex flex-col">
                             <div class="flex items-start justify-between">
                                 <div>
-                                    <h2 class="text-xl font-semibold text-gray-800 dark:text-white">
-                                        <?= htmlspecialchars($skill['nama_skill']) ?>
-                                    </h2>
-                                    <div class="flex items-center mt-2">
-                                        <span
-                                            class="bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-300 text-sm font-medium px-2.5 py-0.5 rounded-full flex items-center">
-                                            <i class="fas fa-users text-xs mr-1.5"></i>
-                                            <?= $skill['jumlah_staff'] ?> staff
-                                        </span>
+                                    <div class="flex items-center">
+                                        <h2 class="text-xl font-semibold text-gray-800 dark:text-white">
+                                            <?= htmlspecialchars($divisi['nama_divisi']) ?>
+                                        </h2>
                                     </div>
                                 </div>
                                 <div class="dropdown relative">
@@ -212,19 +159,27 @@ $total_skills = $result->num_rows;
                                     </button>
                                     <div
                                         class="dropdown-menu hidden absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-10">
-                                        <a href="edit_skill.php?id=<?= $skill['id_skill'] ?>&divisi_id=<?= $divisi_id ?>"
+                                        <a href="edit_divisi.php?id=<?= $divisi['id_divisi'] ?>"
                                             class="block px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
                                             <i class="fas fa-edit mr-2"></i> Edit
+                                        </a>
+                                        <a href="hapus_divisi.php?id=<?= $divisi['id_divisi'] ?>"
+                                            onclick="return confirm('Anda yakin ingin menghapus divisi ini?')"
+                                            class="block px-4 py-2 text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                            <i class="fas fa-trash-alt mr-2"></i> Hapus
                                         </a>
                                     </div>
                                 </div>
                             </div>
 
                             <div class="mt-auto pt-4">
-                                <a href="../staff/staff.php?skill_id=<?= $skill['id_skill'] ?>&divisi_id=<?= $divisi_id ?>&cabang_id=<?= $cabang_id ?>"
-                                    class="w-full bg-primary-600 text-white px-4 py-2 rounded-lg text-center hover:bg-primary-700 transition flex items-center justify-center">
-                                    <i class="fas fa-users mr-2"></i> Lihat Staff
-                                </a>
+                                <div class="flex space-x-2">
+                                    <a href="../skill/skill.php?divisi_id=<?= $divisi['id_divisi'] ?>"
+                                        class="w-full bg-primary-600 text-white px-4 py-2 rounded-lg text-center hover:bg-primary-700 transition flex items-center justify-center">
+                                        <i class="fas fa-laptop-code mr-2"></i> Kelola Skill
+                                    </a>
+
+                                </div>
                             </div>
                         </div>
                     <?php endwhile; ?>
@@ -234,15 +189,14 @@ $total_skills = $result->num_rows;
                     class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 text-center border border-gray-200 dark:border-gray-700">
                     <div class="flex flex-col items-center">
                         <div class="bg-gray-100 dark:bg-gray-700 p-6 rounded-full mb-4">
-                            <i class="fas fa-laptop-code text-4xl text-gray-400"></i>
+                            <i class="fas fa-folder-open text-4xl text-gray-400"></i>
                         </div>
-                        <h3 class="text-xl font-medium text-gray-800 dark:text-white mb-2">Belum ada skill yang terdaftar
-                        </h3>
-                        <p class="text-gray-500 dark:text-gray-400 mb-6">Tambahkan skill baru untuk divisi ini</p>
-                        <a href="tambah_skill.php?divisi_id=<?= $divisi_id ?>"
+                        <h3 class="text-xl font-medium text-gray-800 dark:text-white mb-2">Belum ada divisi</h3>
+                        <p class="text-gray-500 dark:text-gray-400 mb-6">Tambahkan divisi baru untuk cabang ini</p>
+                        <a href="tambah_divisi.php?cabang_id=<?= $cabang_id ?>"
                             class="inline-flex items-center bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition">
                             <i class="fas fa-plus-circle mr-2"></i>
-                            Tambah Skill Pertama
+                            Tambah Divisi Pertama
                         </a>
                     </div>
                 </div>
@@ -251,6 +205,16 @@ $total_skills = $result->num_rows;
     </div>
 
     <script>
+        // Password modal functions
+        function showPasswordModal(divisiId) {
+            document.getElementById('divisiIdInput').value = divisiId;
+            document.getElementById('passwordModal').classList.remove('hidden');
+        }
+
+        function closePasswordModal() {
+            document.getElementById('passwordModal').classList.add('hidden');
+        }
+
         // Dropdown toggle
         document.querySelectorAll('.dropdown').forEach(dropdown => {
             const btn = dropdown.querySelector('button');
@@ -270,16 +234,17 @@ $total_skills = $result->num_rows;
         });
 
         // Search functionality
-        const searchInput = document.getElementById('searchSkill');
-        const skillCards = document.querySelectorAll('.skill-card');
+        const searchInput = document.getElementById('searchDivisi');
+        const divisiCards = document.querySelectorAll('.divisi-card');
 
         searchInput.addEventListener('input', () => {
             const searchTerm = searchInput.value.toLowerCase();
 
-            skillCards.forEach(card => {
-                const skillName = card.querySelector('h2').textContent.toLowerCase();
+            divisiCards.forEach(card => {
+                const divisiName = card.querySelector('h2').textContent.toLowerCase();
+                const divisiDesc = card.querySelector('p')?.textContent.toLowerCase() || '';
 
-                if (skillName.includes(searchTerm)) {
+                if (divisiName.includes(searchTerm) || divisiDesc.includes(searchTerm)) {
                     card.style.display = 'flex';
                 } else {
                     card.style.display = 'none';

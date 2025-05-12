@@ -2,30 +2,68 @@
 session_start();
 include '../koneksi.php';
 
-$username = $_POST['username'] ?? '';
-$password = $_POST['password'] ?? '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $username = trim($_POST['username']);
+    $password = trim($_POST['password']);
 
-if (empty($username) || empty($password)) {
-    die("❌ Username dan password harus diisi.");
-}
-
-$stmt = $conn->prepare("SELECT id_user, password FROM users WHERE username = ?");
-$stmt->bind_param("s", $username);
-$stmt->execute();
-$result = $stmt->get_result();
-
-if ($result->num_rows === 1) {
-    $user = $result->fetch_assoc();
-
-    if (password_verify($password, $user['password'])) {
-        $_SESSION['id_user'] = $user['id_user'];
-        $_SESSION['username'] = $username;
-        header("Location: ../cabang/cabang.php");
+    // Cek jika field username atau password kosong
+    if (empty($username) || empty($password)) {
+        header("Location: ../index.php?error=emptyfields");
         exit;
-    } else {
-        echo "❌ Password salah.";
     }
-} else {
-    echo "❌ Username tidak ditemukan.";
+
+    // Query untuk mengambil data user berdasarkan username
+    $stmt = $conn->prepare("SELECT * FROM users WHERE username = ?");
+    $stmt->bind_param("s", $username);
+
+    if ($stmt->execute()) {
+        $result = $stmt->get_result();
+
+        // Cek jika username ditemukan di database
+        if ($result->num_rows === 1) {
+            $user = $result->fetch_assoc();
+
+            // Cek password menggunakan password_verify() untuk mencocokkan hash
+            if (password_verify($password, $user['password'])) {
+                // Simpan session user
+                $_SESSION['user_id'] = $user['id_user'];
+                $_SESSION['username'] = $user['username'];
+                $_SESSION['role'] = $user['role'];
+
+                // Tambahkan session_start() pada halaman berikutnya untuk memastikan session aktif
+                session_regenerate_id(true); // Gantilah session_id untuk menghindari session fixation attacks
+
+                // Redirect berdasarkan role
+                if ($user['role'] === 'admin') {
+                    header("Location: ../admin/cabang/cabang.php");
+                } elseif ($user['role'] === 'kasir' || $user['role'] === 'guru') {
+                    header("Location: ../cabang/cabang.php");
+                } else {
+                    header("Location: ../index.php?error=unknownrole");
+                }
+                $stmt->close();
+                $conn->close();
+                exit;
+            } else {
+                // Password salah
+                $stmt->close();
+                $conn->close();
+                header("Location: ../index.php?error=wrongcredentials");
+                exit;
+            }
+        } else {
+            // Username tidak ditemukan
+            $stmt->close();
+            $conn->close();
+            header("Location: ../index.php?error=wrongcredentials");
+            exit;
+        }
+    } else {
+        // Error SQL
+        $stmt->close();
+        $conn->close();
+        header("Location: ../index.php?error=sqlerror");
+        exit;
+    }
 }
 ?>
