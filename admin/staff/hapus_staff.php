@@ -1,5 +1,14 @@
 <?php
-include '../koneksi.php';
+include '../../koneksi.php';
+
+session_start();
+$role = $_SESSION['role'];
+$username = $_SESSION['username'];
+
+if ($role !== 'admin') {
+    header("Location: ../../unauthorized.php");
+    exit;
+}
 
 // Validasi parameter
 if (!isset($_GET['id_staff']) || !isset($_GET['divisi_id'])) {

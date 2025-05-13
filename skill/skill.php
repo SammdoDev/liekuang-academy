@@ -1,6 +1,17 @@
 <?php
 include '../koneksi.php';
 
+session_start();
+$role = $_SESSION['role'];
+$isKasir = ($role === 'kasir');
+
+// Pengecekan untuk memastikan hanya kasir dan guru yang bisa mengakses halaman ini
+if ($role !== 'kasir' && $role !== 'guru') {
+    // Redirect ke halaman authorized.php jika role selain kasir dan guru
+    header('Location: ../unauthorized.php');
+    exit;
+}
+
 if (!isset($_GET['divisi_id'])) {
     die("Divisi tidak ditemukan!");
 }
@@ -60,6 +71,7 @@ $total_skills = $result->num_rows;
 
 ?>
 
+
 <!DOCTYPE html>
 <html lang="id">
 
@@ -109,7 +121,9 @@ $total_skills = $result->num_rows;
                     <span>Kembali ke Divisi</span>
                 </a>
                 <a href="tambah_skill.php?divisi_id=<?= $divisi_id ?>"
-                    class="flex items-center text-white bg-primary-600 px-4 py-3 rounded-lg shadow-md hover:bg-primary-700 transition">
+                    class="flex items-center text-white bg-primary-600 px-4 py-3 rounded-lg shadow-md hover:bg-primary-700 transition"
+                    <?php if ($isKasir)
+                        echo 'style="display: none;"'; ?>>
                     <i class="fas fa-plus-circle mr-3"></i>
                     <span>Tambah Skill</span>
                 </a>
@@ -195,7 +209,7 @@ $total_skills = $result->num_rows;
                             <div class="flex items-start justify-between">
                                 <div>
                                     <h2 class="text-xl font-semibold text-gray-800 dark:text-white">
-                                        <?= htmlspecialchars($skill['nama_skill']) ?>
+                                        <?= html_entity_decode(htmlspecialchars($skill['nama_skill'], ENT_NOQUOTES)) ?>
                                     </h2>
                                     <div class="flex items-center mt-2">
                                         <span
@@ -207,13 +221,15 @@ $total_skills = $result->num_rows;
                                 </div>
                                 <div class="dropdown relative">
                                     <button
-                                        class="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
-                                        <i class="fas fa-ellipsis-v"></i>
+                                        class="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+                                        <?php if ($isKasir) 'style="display: none;"'; ?> <i class="fas fa-ellipsis-v"></i>
                                     </button>
                                     <div
                                         class="dropdown-menu hidden absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-10">
                                         <a href="edit_skill.php?id=<?= $skill['id_skill'] ?>&divisi_id=<?= $divisi_id ?>"
-                                            class="block px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                            class="block px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                            <?php if ($isKasir)
+                                                echo 'style="display: none;"'; ?>>
                                             <i class="fas fa-edit mr-2"></i> Edit
                                         </a>
                                     </div>

@@ -1,7 +1,13 @@
 <?php
 include '../../koneksi.php';
+session_start();
+$role = $_SESSION['role'];
+$username = $_SESSION['username'];
 
-// Password akan diambil dari divisi
+if ($role !== 'admin') {
+    header("Location: ../../unauthorized.php");
+    exit;
+}
 
 // Validasi parameter 
 if (!isset($_GET['skill_id']) || empty($_GET['skill_id'])) {

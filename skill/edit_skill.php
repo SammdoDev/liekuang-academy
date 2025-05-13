@@ -68,28 +68,28 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $message_type = "warning";
     } else {
         $nama_skill = sanitize_input($conn, $_POST['nama_skill']);
-        
+
         // Update data skill
         $updateQuery = $conn->prepare("UPDATE skill SET nama_skill = ? WHERE id_skill = ?");
         $updateQuery->bind_param("si", $nama_skill, $skill_id);
-        
+
         if ($updateQuery->execute()) {
             $message = "Nama skill berhasil diperbarui!";
             $message_type = "success";
-            
+
             // Perbarui nilai current untuk ditampilkan di form
             $current_nama = $nama_skill;
-            
+
             // Redirect jika diminta
             if (isset($_POST['save_and_return']) && $_POST['save_and_return'] == '1') {
                 $redirect_url = "skill.php?divisi_id=$divisi_id";
-                
+
                 if (!empty($cabang_id)) {
                     $redirect_url .= "&cabang_id=$cabang_id";
                 }
-                
+
                 $redirect_url .= "&updated=success&skill_name=" . urlencode($nama_skill);
-                
+
                 header("Location: $redirect_url");
                 exit();
             }
@@ -103,6 +103,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -133,24 +134,27 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         }
     </script>
 </head>
+
 <body class="bg-gray-50 dark:bg-gray-900 min-h-screen">
     <div class="max-w-2xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <div class="mb-8 flex items-center">
             <?php
             // Buat URL kembali dengan parameter
             $back_url = "skill.php?divisi_id=$divisi_id";
-            
+
             if (!empty($cabang_id)) {
                 $back_url .= "&cabang_id=$cabang_id";
             }
             ?>
-            <a href="<?= $back_url ?>" class="flex items-center text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition">
+            <a href="<?= $back_url ?>"
+                class="flex items-center text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition">
                 <i class="fas fa-arrow-left mr-2"></i>
                 <span>Kembali ke Daftar Skill</span>
             </a>
         </div>
 
-        <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+        <div
+            class="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
             <div class="p-6 border-b border-gray-200 dark:border-gray-700">
                 <h1 class="text-2xl font-bold text-gray-800 dark:text-white">
                     <i class="fas fa-tools text-primary-600 dark:text-primary-400 mr-2"></i>
@@ -162,32 +166,33 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             </div>
 
             <div class="p-6">
-                <div class="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border-l-4 border-blue-500 dark:border-blue-500/70">
+                <div
+                    class="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border-l-4 border-blue-500 dark:border-blue-500/70">
                     <div class="flex items-center text-blue-800 dark:text-blue-300">
                         <i class="fas fa-info-circle mr-2"></i>
                         <span class="font-medium">Informasi Skill</span>
                     </div>
                     <div class="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-blue-700 dark:text-blue-400">
                         <div>
-                            <span class="font-semibold">Divisi:</span> 
+                            <span class="font-semibold">Divisi:</span>
                             <?= htmlspecialchars($divisi_name) ?>
                         </div>
                         <div>
-                            <span class="font-semibold">Cabang:</span> 
+                            <span class="font-semibold">Cabang:</span>
                             <?= htmlspecialchars($cabang_name) ?>
                         </div>
                     </div>
                 </div>
-                
+
                 <?php if (!empty($message)): ?>
-                    <div class="mb-6 p-4 rounded-lg border-l-4 <?php 
-                        if ($message_type === 'success') {
-                            echo 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-500 dark:border-green-500/70';
-                        } elseif ($message_type === 'warning') {
-                            echo 'bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border-yellow-500 dark:border-yellow-500/70';
-                        } else {
-                            echo 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-500 dark:border-red-500/70';
-                        }
+                    <div class="mb-6 p-4 rounded-lg border-l-4 <?php
+                    if ($message_type === 'success') {
+                        echo 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-500 dark:border-green-500/70';
+                    } elseif ($message_type === 'warning') {
+                        echo 'bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border-yellow-500 dark:border-yellow-500/70';
+                    } else {
+                        echo 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-500 dark:border-red-500/70';
+                    }
                     ?>">
                         <div class="flex items-center">
                             <?php if ($message_type === 'success'): ?>
@@ -208,10 +213,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                             Nama Skill
                         </label>
                         <div class="relative">
-                            <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-500 dark:text-gray-400">
+                            <span
+                                class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-500 dark:text-gray-400">
                                 <i class="fas fa-tools"></i>
                             </span>
-                            <input type="text" id="nama_skill" name="nama_skill" value="<?= htmlspecialchars($current_nama) ?>" required
+                            <input type="text" id="nama_skill" name="nama_skill"
+                                value="<?= htmlspecialchars(html_entity_decode($current_nama), ENT_QUOTES) ?>" required
                                 class="pl-10 py-4 block w-full border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
                                 placeholder="Masukkan nama skill">
                         </div>
@@ -220,35 +227,36 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                             Nama skill akan ditampilkan di semua sistem aplikasi
                         </p>
                     </div>
-                    
+
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                        <button type="submit" name="save" 
-                                class="bg-primary-600 text-white px-4 py-3 rounded-lg hover:bg-primary-700 transition flex items-center justify-center">
+                        <button type="submit" name="save"
+                            class="bg-primary-600 text-white px-4 py-3 rounded-lg hover:bg-primary-700 transition flex items-center justify-center">
                             <i class="fas fa-save mr-2"></i>
                             Simpan Perubahan
                         </button>
-                        
-                        <button type="submit" name="save_and_return" value="1" 
-                                class="bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 transition flex items-center justify-center">
+
+                        <button type="submit" name="save_and_return" value="1"
+                            class="bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 transition flex items-center justify-center">
                             <i class="fas fa-check-double mr-2"></i>
                             Simpan & Kembali
                         </button>
                     </div>
                 </form>
-                
+
                 <div class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
-                    <a href="<?= $back_url ?>" 
-                       class="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition flex items-center">
+                    <a href="<?= $back_url ?>"
+                        class="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition flex items-center">
                         <i class="fas fa-arrow-left mr-2"></i>
                         Kembali
                     </a>
-                    
+
                 </div>
             </div>
         </div>
 
         <div class="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">
-            <button id="darkModeToggle" class="inline-flex items-center text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition">
+            <button id="darkModeToggle"
+                class="inline-flex items-center text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition">
                 <i class="fas fa-moon mr-2 dark:hidden"></i>
                 <i class="fas fa-sun mr-2 hidden dark:inline"></i>
                 <span class="dark:hidden">Mode Gelap</span>
@@ -256,30 +264,30 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             </button>
         </div>
     </div>
-    
+
     <script>
         // Script untuk konfirmasi jika ada perubahan yang belum disimpan
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             const form = document.querySelector('form');
             const initialValues = {
                 nama: document.getElementById('nama_skill').value
             };
-            
+
             let formChanged = false;
-            
-            form.addEventListener('change', function() {
+
+            form.addEventListener('change', function () {
                 const currentValues = {
                     nama: document.getElementById('nama_skill').value
                 };
-                
+
                 formChanged = currentValues.nama !== initialValues.nama;
             });
-            
+
             // Untuk link kembali dan hapus
             const links = document.querySelectorAll('a');
             links.forEach(link => {
                 if (!link.hasAttribute('onclick')) {
-                    link.addEventListener('click', function(e) {
+                    link.addEventListener('click', function (e) {
                         if (formChanged && !confirm('Ada perubahan yang belum disimpan. Yakin ingin meninggalkan halaman ini?')) {
                             e.preventDefault();
                         }
@@ -291,12 +299,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         // Dark mode toggle
         const darkModeToggle = document.getElementById('darkModeToggle');
         const html = document.documentElement;
-        
+
         // Check system preference
         if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
             html.classList.add('dark');
         }
-        
+
         // Check for saved theme preference
         const savedTheme = localStorage.getItem('theme');
         if (savedTheme) {
@@ -306,7 +314,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 html.classList.remove('dark');
             }
         }
-        
+
         // Toggle theme
         darkModeToggle.addEventListener('click', () => {
             if (html.classList.contains('dark')) {
@@ -319,4 +327,5 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         });
     </script>
 </body>
+
 </html>

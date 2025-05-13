@@ -1,6 +1,13 @@
 <?php
 include '../../koneksi.php';
 session_start();
+$role = $_SESSION['role'];
+$username = $_SESSION['username'];
+
+if ($role !== 'admin') {
+    header("Location: ../../unauthorized.php");
+    exit;
+}
 
 // Cek jika user belum login
 // Proses form jika ada POST request

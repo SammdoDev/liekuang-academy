@@ -2,6 +2,14 @@
 include '../koneksi.php';
 session_start();
 
+$role = $_SESSION['role'];
+$username = $_SESSION['username'];
+
+if ($role !== 'guru' && $role !== 'kasir') {
+    header("Location: ../../unauthorized.php");
+    exit;
+}
+
 // Cek apakah id_cabang tersedia
 if (!isset($_GET['cabang_id'])) {
     die("Cabang tidak ditemukan!");
@@ -37,27 +45,72 @@ $jumlahDivisi = $resultDivisi->num_rows;
 // Akses divisi yang telah diberikan (session)
 $divisi_access = $_SESSION['divisi_access'] ?? [];
 
+// Determine user role from users table
+$user_role = $_SESSION['user_role'] ?? 'regular'; // Default as regular if not set
+
+// Get user id from session
+$user_id = $_SESSION['user_id'] ?? 0;
+
+// If user is logged in, get their role from database
+if ($user_id > 0) {
+    $query = $conn->prepare("SELECT role FROM users WHERE id_user = ?");
+    $query->bind_param("i", $user_id);
+    $query->execute();
+    $result = $query->get_result();
+    if ($row = $result->fetch_assoc()) {
+        $user_role = $row['role']; // Update role from database
+        $_SESSION['user_role'] = $user_role; // Save to session
+    }
+}
+
 // Proses jika user mengisi password divisi
 $error_msg = "";
 $success_msg = "";
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['divisi_id']) && isset($_POST['password'])) {
+// If admin, redirect directly to authorize.php for the requested division
+if ($user_role === 'admin' && isset($_GET['authorize_divisi'])) {
+    $divisi_id = intval($_GET['authorize_divisi']);
+    
+    // Add to divisi access and redirect to authorization page
+    if (!in_array($divisi_id, $divisi_access)) {
+        $divisi_access[] = $divisi_id;
+        $_SESSION['divisi_access'] = $divisi_access;
+    }
+    
+    header("Location: ../skill/skill.php?divisi_id=" . $divisi_id);
+    exit();
+}
+
+// Handle password verification (for teachers) or automatic access (for cashiers)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['divisi_id'])) {
     $divisi_id = intval($_POST['divisi_id']);
-    $password = $_POST['password'];
-
-    $query = $conn->prepare("SELECT id_divisi FROM divisi WHERE id_divisi = ? AND password = ?");
-    $query->bind_param("is", $divisi_id, $password);
-    $query->execute();
-    $result = $query->get_result();
-
-    if ($result->num_rows > 0) {
+    
+    // For cashier role: automatically grant access without password
+    if ($user_role === 'kasir') {
         if (!in_array($divisi_id, $divisi_access)) {
             $divisi_access[] = $divisi_id;
             $_SESSION['divisi_access'] = $divisi_access;
         }
         $success_msg = "Akses divisi diberikan!";
-    } else {
-        $error_msg = "Password salah!";
+    } 
+    // For teacher role: verify password
+    else if ($user_role === 'guru' && isset($_POST['password'])) {
+        $password = $_POST['password'];
+        
+        $query = $conn->prepare("SELECT id_divisi FROM divisi WHERE id_divisi = ? AND password = ?");
+        $query->bind_param("is", $divisi_id, $password);
+        $query->execute();
+        $result = $query->get_result();
+
+        if ($result->num_rows > 0) {
+            if (!in_array($divisi_id, $divisi_access)) {
+                $divisi_access[] = $divisi_id;
+                $_SESSION['divisi_access'] = $divisi_access;
+            }
+            $success_msg = "Akses divisi diberikan!";
+        } else {
+            $error_msg = "Password salah!";
+        }
     }
 }
 ?>
@@ -177,8 +230,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['divisi_id']) && isset
                     <span>Kembali ke Cabang</span>
                 </a>
 
-
-
                 <div class="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
                     <h3 class="text-sm uppercase text-gray-500 dark:text-gray-400 font-semibold mb-3">Navigasi Cepat
                     </h3>
@@ -192,7 +243,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['divisi_id']) && isset
                         <i class="fas fa-users mr-3 text-gray-500 dark:text-gray-400 group-hover:text-primary-500"></i>
                         <span>Karyawan</span>
                     </a>
-
+                </div>
+                
+                <!-- User role indicator -->
+                <div class="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
+                    <div class="px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                        <p class="text-sm text-gray-600 dark:text-gray-400">
+                            <i class="fas fa-user-tag mr-2"></i>
+                            Role: <span class="font-semibold"><?= ucfirst($user_role) ?></span>
+                        </p>
+                    </div>
                 </div>
             </nav>
 
@@ -233,9 +293,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['divisi_id']) && isset
                     // Reset pointer to the beginning
                     $resultDivisi->data_seek(0);
                     while ($divisi = $resultDivisi->fetch_assoc()):
-                        // Check if admin or has access to this divisi
+                        // Check if user has access to this divisi
                         $has_access = in_array($divisi['id_divisi'], $divisi_access);
-
                         $has_password = !empty($divisi['password']);
                         ?>
                         <div
@@ -246,7 +305,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['divisi_id']) && isset
                                         <h2 class="text-xl font-semibold text-gray-800 dark:text-white">
                                             <?= htmlspecialchars($divisi['nama_divisi']) ?>
                                         </h2>
-                                        <?php if ($has_password): ?>
+                                        <?php if ($has_password && $user_role !== 'admin' && $user_role !== 'kasir'): ?>
                                             <i class="fas fa-lock ml-2 text-gray-500 dark:text-gray-400"
                                                 title="Dilindungi password"></i>
                                         <?php endif; ?>
@@ -261,6 +320,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['divisi_id']) && isset
                                             class="w-full bg-primary-600 text-white px-4 py-2 rounded-lg text-center hover:bg-primary-700 transition flex items-center justify-center">
                                             <i class="fas fa-laptop-code mr-2"></i> Kelola Skill
                                         </a>
+                                    <?php elseif ($user_role === 'admin'): ?>
+                                        <a href="?cabang_id=<?= $cabang_id ?>&authorize_divisi=<?= $divisi['id_divisi'] ?>"
+                                            class="w-full bg-primary-600 text-white px-4 py-2 rounded-lg text-center hover:bg-primary-700 transition flex items-center justify-center">
+                                            <i class="fas fa-unlock mr-2"></i> Akses Langsung
+                                        </a>
+                                    <?php elseif ($user_role === 'kasir'): ?>
+                                        <form method="POST" class="w-full">
+                                            <input type="hidden" name="divisi_id" value="<?= $divisi['id_divisi'] ?>">
+                                            <button type="submit" 
+                                                class="w-full bg-primary-600 text-white px-4 py-2 rounded-lg text-center hover:bg-primary-700 transition flex items-center justify-center">
+                                                <i class="fas fa-sign-in-alt mr-2"></i> Akses Divisi
+                                            </button>
+                                        </form>
                                     <?php else: ?>
                                         <button onclick="showPasswordModal(<?= $divisi['id_divisi'] ?>)"
                                             class="w-full bg-gray-600 text-white px-4 py-2 rounded-lg text-center hover:bg-gray-700 transition flex items-center justify-center">

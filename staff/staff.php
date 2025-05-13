@@ -1,6 +1,10 @@
 <?php
 include '../koneksi.php';
 
+session_start();
+$role = $_SESSION['role'];
+$isKasir = ($role === 'kasir');
+
 // Password akan diambil dari divisi
 $access_password = "skillmatrix123"; // Default password
 
@@ -72,7 +76,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['password_submit'])) {
     }
 } else {
     // Cek apakah sudah login sebelumnya dan divisi_id sama
-    session_start();
     if (
         isset($_SESSION['authenticated']) && $_SESSION['authenticated'] === true &&
         isset($_SESSION['divisi_id']) && $_SESSION['divisi_id'] == $divisi_id
@@ -500,7 +503,8 @@ function getSkillMatrixDetails($conn, $staff_id, $skill_id)
 
                 <!-- Form Tambah Staff -->
                 <div class="p-6 border-b border-gray-200 dark:border-gray-700">
-                    <h3 class="text-lg font-medium text-gray-800 dark:text-white mb-4">
+                    <h3 class="text-lg font-medium text-gray-800 dark:text-white mb-4" <?php if ($isKasir)
+                        echo 'style="display: none;"'; ?>>
                         <i class="fas fa-plus-circle mr-2 text-primary-500"></i>Tambah Staff Baru
                     </h3>
                     <?php if (isset($error_message)): ?>
@@ -511,7 +515,8 @@ function getSkillMatrixDetails($conn, $staff_id, $skill_id)
 
                     <form method="POST"
                         action="<?= $_SERVER['PHP_SELF'] ?>?skill_id=<?= $skill_id ?>&divisi_id=<?= $divisi_id ?>&cabang_id=<?= $cabang_id ?>"
-                        class="flex flex-col sm:flex-row items-center gap-3">
+                        class="flex flex-col sm:flex-row items-center gap-3" <?php if ($isKasir)
+                            echo 'style="display: none;"'; ?>>
                         <div class="relative flex-grow w-full">
                             <span
                                 class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-500 dark:text-gray-400">
@@ -628,7 +633,8 @@ function getSkillMatrixDetails($conn, $staff_id, $skill_id)
                                         <th class="px-4 py-3 text-gray-700 dark:text-gray-300">Nama Staff</th>
                                         <th class="px-4 py-3 text-gray-700 dark:text-gray-300">Rata-rata</th>
                                         <th class="px-4 py-3 text-gray-700 dark:text-gray-300">Status</th>
-                                        <th class="px-4 py-3 text-gray-700 dark:text-gray-300">Aksi</th>
+                                        <th class="px-4 py-3 text-gray-700 dark:text-gray-300" <?php if ($isKasir)
+                                            echo 'style="display: none;"'; ?>>Aksi</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -688,7 +694,8 @@ function getSkillMatrixDetails($conn, $staff_id, $skill_id)
                                                 <?php endif; ?>
                                             </td>
                                             <td class="px-4 py-3 relative">
-                                                <div class="flex items-center space-x-2">
+                                                <div class="flex items-center space-x-2" <?php if ($isKasir)
+                                                    echo 'style="display: none;"'; ?>>
                                                     <!-- Tombol Edit Data di sebelah kiri -->
                                                     <?php if ($authenticated): ?>
                                                         <a href="edit_staff.php?id_staff=<?= $staff['id_staff'] ?>&skill_id=<?= $skill_id ?>&divisi_id=<?= $divisi_id ?>&cabang_id=<?= $cabang_id ?>"

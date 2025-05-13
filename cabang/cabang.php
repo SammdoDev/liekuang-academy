@@ -18,10 +18,11 @@ if (!isset($_SESSION['user_id'])) {
 $role = $_SESSION['role'];
 $username = $_SESSION['username'];
 
-if ($role !== 'guru') {
+if ($role !== 'guru' && $role !== 'kasir') {
     header("Location: ../../unauthorized.php");
     exit;
 }
+
 ?>
 
 <!DOCTYPE html>

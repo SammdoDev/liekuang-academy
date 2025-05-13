@@ -1,5 +1,5 @@
 <?php
-include '../koneksi.php';
+include '../../koneksi.php';
 
 if (!isset($_GET['id']) || !isset($_GET['divisi_id'])) {
     die("Data tidak valid.");

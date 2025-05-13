@@ -1,5 +1,5 @@
 <?php
-include '../koneksi.php';
+include '../../koneksi.php';
 
 // Periksa apakah ID divisi ada
 if (!isset($_GET['id'])) {

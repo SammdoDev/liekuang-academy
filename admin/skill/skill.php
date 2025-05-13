@@ -1,5 +1,13 @@
 <?php
 include '../../koneksi.php';
+session_start();
+$role = $_SESSION['role'];
+$username = $_SESSION['username'];
+
+if ($role !== 'admin') {
+    header("Location: ../../unauthorized.php");
+    exit;
+}
 
 if (!isset($_GET['divisi_id'])) {
     die("Divisi tidak ditemukan!");
@@ -122,7 +130,7 @@ $total_skills = $result->num_rows;
                         <i class="fas fa-home mr-3 text-gray-500 dark:text-gray-400 group-hover:text-primary-500"></i>
                         <span>Home</span>
                     </a>
-                    <form action="../logout.php" method="POST">
+                    <form action="../../logout.php" method="POST">
                         <button type="submit"
                             class="mt-4 w-full flex items-center justify-start text-red-600 px-4 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-gray-700 transition">
                             <i class="fas fa-sign-out-alt mr-3"></i>
@@ -195,7 +203,7 @@ $total_skills = $result->num_rows;
                             <div class="flex items-start justify-between">
                                 <div>
                                     <h2 class="text-xl font-semibold text-gray-800 dark:text-white">
-                                        <?= htmlspecialchars($skill['nama_skill']) ?>
+                                        <?= html_entity_decode(htmlspecialchars($skill['nama_skill'], ENT_NOQUOTES)) ?>
                                     </h2>
                                     <div class="flex items-center mt-2">
                                         <span
