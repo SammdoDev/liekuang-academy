@@ -341,7 +341,6 @@ function getSkillMatrixDetails($conn, $staff_id, $skill_id)
         /* Style untuk dropdown menu */
         .dropdown {
             position: relative;
-            display: inline-block;
         }
 
         .dropdown-content {
@@ -349,35 +348,23 @@ function getSkillMatrixDetails($conn, $staff_id, $skill_id)
             position: absolute;
             right: 0;
             min-width: 160px;
-            z-index: 1;
-            background-color: white;
+            z-index: 1000;
+            /* Higher z-index to ensure it's on top */
             box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
-            border-radius: 0.5rem;
-            overflow: hidden;
         }
 
-        .dark .dropdown-content {
-            background-color: #1F2937;
-        }
-
-        .dropdown-content a {
-            padding: 12px 16px;
-            display: block;
-            text-decoration: none;
-        }
-
-        /* PERUBAHAN: Ubah hover menjadi tampil saat dropdown aktif */
-        .dropdown.active .dropdown-content {
+        .dropdown:hover .dropdown-content {
             display: block;
         }
 
-        /* PERUBAHAN: Tambahkan style untuk panel detail nilai */
+        /* Style for skill details panel */
         .skill-details {
             display: none;
+            /* Hidden by default */
         }
 
-        .skill-details.active {
-            display: block;
+        .skill-details.show {
+            display: table-row;
         }
     </style>
 </head>
@@ -701,20 +688,21 @@ function getSkillMatrixDetails($conn, $staff_id, $skill_id)
                                                 <?php else: ?>
                                                     <span class="bg-red-100 text-red-800 text-sm font-medium px-2.5 py-0.5 rounded">
                                                         <?= $statusText ?>
-                                                    </span> 
+                                                    </span>
                                                 <?php endif; ?>
                                             </td>
                                             <td class="px-4 py-3">
                                                 <div class="flex items-center space-x-2">
-                                                    <div class="dropdown">
+                                                    <div class="dropdown relative">
                                                         <button
                                                             class="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 px-3 py-1 rounded-lg transition-colors dropdown-toggle">
                                                             <i class="fas fa-ellipsis-v"></i>
                                                         </button>
-                                                        <div class="dropdown-content">
+                                                        <div
+                                                            class="dropdown-content absolute right-0 mt-2 bg-white dark:bg-gray-800 shadow-lg rounded-lg overflow-hidden z-50">
                                                             <?php if ($authenticated): ?>
                                                                 <a href="edit_staff.php?id_staff=<?= $staff['id_staff'] ?>&skill_id=<?= $skill_id ?>&divisi_id=<?= $divisi_id ?>&cabang_id=<?= $cabang_id ?>"
-                                                                    class="text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 dark:text-blue-400">
+                                                                    class="block px-4 py-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 dark:text-blue-400">
                                                                     <i class="fas fa-edit w-5 text-center"></i> Edit Data
                                                                 </a>
                                                             <?php else: ?>
@@ -722,7 +710,7 @@ function getSkillMatrixDetails($conn, $staff_id, $skill_id)
                                                                     <input type="hidden" name="redirect_staff_id"
                                                                         value="<?= $staff['id_staff'] ?>">
                                                                     <button type="button"
-                                                                        class="auth-required text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 dark:text-blue-400 w-full text-left px-4 py-2">
+                                                                        class="auth-required block w-full px-4 py-2 text-left text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 dark:text-blue-400">
                                                                         <i class="fas fa-edit w-5 text-center"></i> Edit Data
                                                                     </button>
                                                                 </form>
@@ -735,7 +723,7 @@ function getSkillMatrixDetails($conn, $staff_id, $skill_id)
 
                                         <!-- Skill Matrix Details Panel -->
                                         <?php if ($skillMatrixDetails): ?>
-                                            <tr class="skill-details" id="details-<?= $staff['id_staff'] ?>">
+                                            <tr class="skill-details hidden" id="details-<?= $staff['id_staff'] ?>">
                                                 <td colspan="5" class="bg-gray-50 dark:bg-gray-800 p-4">
                                                     <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
                                                         <h4 class="font-medium text-gray-800 dark:text-white mb-3">Detail Penilaian
@@ -969,47 +957,29 @@ function getSkillMatrixDetails($conn, $staff_id, $skill_id)
             }
         });
 
-        // Toggle dropdowns
-        document.querySelectorAll('.dropdown-toggle').forEach(button => {
-            button.addEventListener('click', function (e) {
-                e.stopPropagation(); // Prevent event bubbling
-                const dropdown = this.parentElement;
-                dropdown.classList.toggle('active');
 
-                // Close other dropdowns
-                document.querySelectorAll('.dropdown.active').forEach(activeDropdown => {
-                    if (activeDropdown !== dropdown) {
-                        activeDropdown.classList.remove('active');
+        document.addEventListener('DOMContentLoaded', function () {
+            // Get all toggle buttons
+            const toggleButtons = document.querySelectorAll('.toggle-details');
+
+            // Add click event to each button
+            toggleButtons.forEach(button => {
+                button.addEventListener('click', function () {
+                    const staffId = this.getAttribute('data-staff-id');
+                    const detailsRow = document.getElementById('details-' + staffId);
+
+                    // Toggle the visibility of the details row
+                    if (detailsRow.classList.contains('hidden')) {
+                        detailsRow.classList.remove('hidden');
+                        detailsRow.classList.add('show');
+                    } else {
+                        detailsRow.classList.add('hidden');
+                        detailsRow.classList.remove('show');
                     }
                 });
             });
         });
 
-        // Close dropdowns when clicking outside
-        document.addEventListener('click', function () {
-            document.querySelectorAll('.dropdown.active').forEach(dropdown => {
-                dropdown.classList.remove('active');
-            });
-        });
-
-        // Toggle skill details
-        document.querySelectorAll('.toggle-details').forEach(button => {
-            button.addEventListener('click', function () {
-                const staffId = this.getAttribute('data-staff-id');
-                const detailsRow = document.getElementById('details-' + staffId);
-                detailsRow.classList.toggle('active');
-
-                // Update icon
-                const icon = this.querySelector('i');
-                if (detailsRow.classList.contains('active')) {
-                    icon.classList.remove('fa-info-circle');
-                    icon.classList.add('fa-chevron-up');
-                } else {
-                    icon.classList.remove('fa-chevron-up');
-                    icon.classList.add('fa-info-circle');
-                }
-            });
-        });
     </script>
 </body>
 

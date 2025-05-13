@@ -21,7 +21,6 @@ $divisi_result = $divisi_query->get_result();
 if ($divisi_result->num_rows > 0) {
     $divisi_data = $divisi_result->fetch_assoc();
     $divisi_name = $divisi_data['nama_divisi'];
-    $divisi_desc = $divisi_data['deskripsi'] ?? '';
     $cabang_name = $divisi_data['nama_cabang'];
     $cabang_id = $divisi_data['id_cabang'];
 } else {
@@ -58,6 +57,7 @@ $total_staff = $staff_count_data['total'] ?? 0;
 
 // Count total skills
 $total_skills = $result->num_rows;
+
 ?>
 
 <!DOCTYPE html>

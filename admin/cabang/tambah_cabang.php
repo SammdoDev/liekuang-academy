@@ -1,5 +1,5 @@
 <?php
-include '../koneksi.php';
+include '../../koneksi.php';
 session_start();
 
 // Cek jika user belum login
@@ -38,7 +38,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 
                 // Redirect jika diminta
                 if (isset($_POST['save_and_return']) && $_POST['save_and_return'] == '1') {
-                    header("Location: ../cabang.php?created=success&cabang_name=" . urlencode($nama_cabang));
+                    header("Location: ../cabang/cabang.php?created=success&cabang_name=" . urlencode($nama_cabang));
                     exit();
                 }
             } else {

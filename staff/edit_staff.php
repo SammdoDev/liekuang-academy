@@ -105,7 +105,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $nama = sanitize_input($conn, $_POST['nama_staff']);
 
                 $updateQuery = $conn->prepare("UPDATE staff SET nama_staff = ? WHERE id_staff = ?");
-                $updateQuery->bind_param("ssi", $nama, $id_staff);
+                $updateQuery->bind_param("si", $nama, $id_staff);
 
                 if ($updateQuery->execute()) {
                     $message = "Data staff berhasil diperbarui!";
@@ -196,7 +196,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     INSERT INTO skill_matrix (
                         id_skill, id_divisi, id_cabang, id_staff, 
                         total_look, konsultasi_komunikasi, teknik, 
-                        kerapian_kebersihan, produk_knowledge
+                        kerapian_kebersihan, produk_knowledge, catatan
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ");
                 $insert_query->bind_param(
@@ -445,7 +445,7 @@ if (!empty($cabang_id)) {
                 <div
                     class="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
                     <div class="p-6 border-b border-gray-200 dark:border-gray-700">
-                        <h2 class="text-xl font-semibold text-gray-800 dark:text-white">
+                        <h2 class="text-xl font-semibold text-gray-800 dark:text-white -mt-1"></h2>
                             <i class="fas fa-user-edit text-primary-600 dark:text-primary-400 mr-2"></i>
                             Edit Data Staff
                         </h2>

@@ -1,5 +1,5 @@
 <?php
-include '../koneksi.php';
+include '../../koneksi.php';
 
 // Validasi parameter
 if (!isset($_GET['id'])) {

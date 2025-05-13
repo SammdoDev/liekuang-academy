@@ -10,6 +10,11 @@ if (!isset($_SESSION['user_id'])) {
 $role = $_SESSION['role'];
 $username = $_SESSION['username'];
 
+if ($role !== 'admin') {
+    header("Location: ../../unauthorized.php");
+    exit;
+}
+
 $resultCabang = mysqli_query($conn, "SELECT * FROM cabang");
 $jumlahCabang = mysqli_num_rows($resultCabang);
 ?>
@@ -114,7 +119,8 @@ $jumlahCabang = mysqli_num_rows($resultCabang);
 
                 <div class="mt-4 md:mt-0">
                     <div class="relative">
-                        <input type="text" id="searchCabang" placeholder="Cari cabang..." class="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500">
+                        <input type="text" id="searchCabang" placeholder="Cari cabang..."
+                            class="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500">
                         <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
                     </div>
                 </div>
@@ -123,7 +129,8 @@ $jumlahCabang = mysqli_num_rows($resultCabang);
             <?php if ($jumlahCabang > 0): ?>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <?php while ($cabang = mysqli_fetch_assoc($resultCabang)): ?>
-                        <div class="cabang-card p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-all duration-300 flex flex-col">
+                        <div
+                            class="cabang-card p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-all duration-300 flex flex-col">
                             <div class="flex items-start justify-between">
                                 <div>
                                     <h2 class="text-xl font-semibold text-gray-800 dark:text-white">
@@ -133,10 +140,29 @@ $jumlahCabang = mysqli_num_rows($resultCabang);
                                         ID: <?= $cabang['id_cabang'] ?>
                                     </p>
                                 </div>
+                                <div class="dropdown relative">
+                                    <button
+                                        class="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
+                                        <i class="fas fa-ellipsis-v"></i>
+                                    </button>
+                                    <div
+                                        class="dropdown-menu hidden absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-10">
+                                        <a href="../cabang/edit_cabang.php?id=<?= $cabang['id_cabang'] ?>"
+                                            class="block px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                            <i class="fas fa-edit mr-2"></i> Edit
+                                        </a>
+                                        <a href="../cabang/hapus_cabang.php?id=<?= $cabang['id_cabang'] ?>"
+                                            onclick="return confirm('Anda yakin ingin menghapus cabang ini?')"
+                                            class="block px-4 py-2 text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                            <i class="fas fa-trash-alt mr-2"></i> Hapus
+                                        </a>
+                                    </div>
+                                </div>
                             </div>
 
                             <div class="mt-auto pt-4">
-                                <a href="../divisi/divisi.php?cabang_id=<?= $cabang['id_cabang'] ?>" class="w-full bg-primary-600 text-white px-4 py-3 rounded-lg hover:bg-primary-700 transition flex items-center justify-center">
+                                <a href="../divisi/divisi.php?cabang_id=<?= $cabang['id_cabang'] ?>"
+                                    class="w-full bg-primary-600 text-white px-4 py-3 rounded-lg hover:bg-primary-700 transition flex items-center justify-center">
                                     <i class="fas fa-eye mr-2"></i> Lihat Divisi
                                 </a>
                             </div>
@@ -151,7 +177,7 @@ $jumlahCabang = mysqli_num_rows($resultCabang);
 
     <!-- Dark Mode Toggle Script -->
     <script>
-const searchInput = document.getElementById('searchCabang');
+        const searchInput = document.getElementById('searchCabang');
         const cabangCards = document.querySelectorAll('.cabang-card');
 
         searchInput.addEventListener('input', () => {
@@ -205,6 +231,24 @@ const searchInput = document.getElementById('searchCabang');
         if (html.classList.contains('dark')) {
             darkModeToggle.innerHTML = '<i class="fas fa-sun mr-3 text-gray-400"></i><span>Mode Terang</span>';
         }
+
+
+        document.querySelectorAll('.dropdown').forEach(dropdown => {
+            const btn = dropdown.querySelector('button');
+            const menu = dropdown.querySelector('.dropdown-menu');
+
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                menu.classList.toggle('hidden');
+            });
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.dropdown-menu').forEach(menu => {
+                menu.classList.add('hidden');
+            });
+        });
     </script>
 </body>
 

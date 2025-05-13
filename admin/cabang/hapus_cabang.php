@@ -1,5 +1,5 @@
 <?php
-include '../koneksi.php';
+include '../../koneksi.php';
 
 // Periksa apakah ID cabang ada
 if (!isset($_GET['id'])) {

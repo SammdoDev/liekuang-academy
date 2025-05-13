@@ -3,15 +3,25 @@ include '../koneksi.php';
 include '../table.php';
 session_start();
 
-$role = $_SESSION['role'];
-$username = $_SESSION['username'];
-
 // Ambil daftar cabang dan urutkan berdasarkan ID
 $queryCabang = "SELECT * FROM cabang ORDER BY id_cabang ASC";
 $resultCabang = $conn->query($queryCabang);
 
 // Hitung jumlah cabang
 $jumlahCabang = $resultCabang->num_rows;
+
+if (!isset($_SESSION['user_id'])) {
+    header("Location: ../../index.php");
+    exit;
+}
+
+$role = $_SESSION['role'];
+$username = $_SESSION['username'];
+
+if ($role !== 'guru') {
+    header("Location: ../../unauthorized.php");
+    exit;
+}
 ?>
 
 <!DOCTYPE html>
@@ -76,14 +86,6 @@ $jumlahCabang = $resultCabang->num_rows;
                     <span>Divisi</span>
                 </a>
 
-                <!-- Tambah Cabang -->
-                <div class="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
-                    <a href="../cabang/tambah_cabang.php"
-                        class="flex items-center px-4 py-3 rounded-lg text-white bg-primary-600 shadow-md hover:bg-primary-700 transition">
-                        <i class="fas fa-plus-circle mr-3"></i>
-                        <span>Tambah Cabang</span>
-                    </a>
-                </div>
             </nav>
 
             <!-- Footer Controls -->
@@ -139,24 +141,6 @@ $jumlahCabang = $resultCabang->num_rows;
                                     <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">
                                         ID: <?= $cabang['id_cabang'] ?>
                                     </p>
-                                </div>
-                                <div class="dropdown relative">
-                                    <button
-                                        class="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
-                                        <i class="fas fa-ellipsis-v"></i>
-                                    </button>
-                                    <div
-                                        class="dropdown-menu hidden absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-10">
-                                        <a href="../cabang/edit_cabang.php?id=<?= $cabang['id_cabang'] ?>"
-                                            class="block px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
-                                            <i class="fas fa-edit mr-2"></i> Edit
-                                        </a>
-                                        <a href="../cabang/hapus_cabang.php?id=<?= $cabang['id_cabang'] ?>"
-                                            onclick="return confirm('Anda yakin ingin menghapus cabang ini?')"
-                                            class="block px-4 py-2 text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700">
-                                            <i class="fas fa-trash-alt mr-2"></i> Hapus
-                                        </a>
-                                    </div>
                                 </div>
                             </div>
 
@@ -247,24 +231,6 @@ $jumlahCabang = $resultCabang->num_rows;
                 closeModal('lihatPasswordModal');
             }
         }
-
-        // Dropdown toggle
-        document.querySelectorAll('.dropdown').forEach(dropdown => {
-            const btn = dropdown.querySelector('button');
-            const menu = dropdown.querySelector('.dropdown-menu');
-
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                menu.classList.toggle('hidden');
-            });
-        });
-
-        // Close dropdown when clicking outside
-        document.addEventListener('click', () => {
-            document.querySelectorAll('.dropdown-menu').forEach(menu => {
-                menu.classList.add('hidden');
-            });
-        });
 
         // Search functionality
         const searchInput = document.getElementById('searchCabang');

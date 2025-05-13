@@ -29,6 +29,20 @@ $jumlahDivisi = $resultDivisi->num_rows;
 // Ensure divisi_access is set
 $divisi_access = $_SESSION['divisi_access'] ?? [];
 // Rest of the existing code remains the same...
+
+if (!isset($_SESSION['user_id'])) {
+    header("Location: ../index.php");
+    exit;
+}
+
+$role = $_SESSION['role'];
+$username = $_SESSION['username'];
+
+if ($role !== 'admin') {
+    header("Location: ../../unauthorized.php");
+    exit;
+}
+
 ?>
 
 <!DOCTYPE html>

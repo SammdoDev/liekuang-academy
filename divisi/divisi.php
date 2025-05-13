@@ -176,11 +176,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['divisi_id']) && isset
                     <i class="fas fa-arrow-left mr-3 text-gray-500 dark:text-gray-400 group-hover:text-primary-500"></i>
                     <span>Kembali ke Cabang</span>
                 </a>
-                <a href="tambah_divisi.php?cabang_id=<?= $cabang_id ?>"
-                    class="flex items-center text-white bg-primary-600 px-4 py-3 rounded-lg shadow-md hover:bg-primary-700 transition">
-                    <i class="fas fa-plus-circle mr-3"></i>
-                    <span>Tambah Divisi</span>
-                </a>
+
 
 
                 <div class="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
@@ -255,33 +251,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['divisi_id']) && isset
                                                 title="Dilindungi password"></i>
                                         <?php endif; ?>
                                     </div>
-                                    <?php if (!empty($divisi['deskripsi'])): ?>
-                                        <p class="text-gray-600 dark:text-gray-400 mt-2 text-sm">
-                                            <?= nl2br(htmlspecialchars($divisi['deskripsi'] ?? 'Tidak ada deskripsi')) ?>
-                                        </p>
-                                    <?php else: ?>
-                                        <p class="text-gray-500 dark:text-gray-400 mt-2 text-sm italic">
-                                            Tidak ada deskripsi
-                                        </p>
-                                    <?php endif; ?>
-                                </div>
-                                <div class="dropdown relative">
-                                    <button
-                                        class="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
-                                        <i class="fas fa-ellipsis-v"></i>
-                                    </button>
-                                    <div
-                                        class="dropdown-menu hidden absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-10">
-                                        <a href="edit_divisi.php?id=<?= $divisi['id_divisi'] ?>"
-                                            class="block px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
-                                            <i class="fas fa-edit mr-2"></i> Edit
-                                        </a>
-                                        <a href="hapus_divisi.php?id=<?= $divisi['id_divisi'] ?>"
-                                            onclick="return confirm('Anda yakin ingin menghapus divisi ini?')"
-                                            class="block px-4 py-2 text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700">
-                                            <i class="fas fa-trash-alt mr-2"></i> Hapus
-                                        </a>
-                                    </div>
                                 </div>
                             </div>
 
@@ -333,24 +302,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['divisi_id']) && isset
         function closePasswordModal() {
             document.getElementById('passwordModal').classList.add('hidden');
         }
-
-        // Dropdown toggle
-        document.querySelectorAll('.dropdown').forEach(dropdown => {
-            const btn = dropdown.querySelector('button');
-            const menu = dropdown.querySelector('.dropdown-menu');
-
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                menu.classList.toggle('hidden');
-            });
-        });
-
-        // Close dropdown when clicking outside
-        document.addEventListener('click', () => {
-            document.querySelectorAll('.dropdown-menu').forEach(menu => {
-                menu.classList.add('hidden');
-            });
-        });
 
         // Search functionality
         const searchInput = document.getElementById('searchDivisi');
