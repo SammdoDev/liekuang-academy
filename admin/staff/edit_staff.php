@@ -1,5 +1,5 @@
 <?php
-include '../koneksi.php';
+include '../../koneksi.php';
 
 // Function to sanitize input (assuming this is defined in koneksi.php but adding for completeness)
 if (!function_exists('sanitize_input')) {
@@ -497,6 +497,13 @@ if (!empty($cabang_id)) {
                                 class="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition flex items-center">
                                 <i class="fas fa-arrow-left mr-2"></i>
                                 Kembali
+                            </a>
+
+                            <a href="hapus_staff.php?id_staff=<?php echo $id_staff; ?>&divisi_id=<?php echo $divisi_id; ?>&cabang_id=<?php echo $cabang_id; ?>"
+                                class="text-red-600 dark:text-red-500 hover:text-red-800 dark:hover:text-red-400 transition flex items-center"
+                                onclick="return confirm('Anda yakin ingin menghapus staff ini? Tindakan ini tidak dapat dibatalkan.');">
+                                <i class="fas fa-trash-alt mr-2"></i>
+                                Hapus Staff
                             </a>
 
                         </div>

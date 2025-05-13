@@ -1,5 +1,5 @@
 <?php
-include '../koneksi.php';
+include '../../koneksi.php';
 
 // Validasi parameter
 if (!isset($_GET['id']) || !isset($_GET['divisi_id'])) {
@@ -243,6 +243,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         Kembali
                     </a>
                     
+                    <a href="hapus_skill.php?id=<?= $skill_id ?>&divisi_id=<?= $divisi_id ?><?= !empty($cabang_id) ? '&cabang_id='.$cabang_id : '' ?>" 
+                       class="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 transition flex items-center" 
+                       onclick="return confirm('Apakah Anda yakin ingin menghapus skill ini?')">
+                        <i class="fas fa-trash-alt mr-2"></i>
+                        Hapus Skill Ini
+                    </a>
                 </div>
             </div>
         </div>

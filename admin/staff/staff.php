@@ -1,8 +1,7 @@
 <?php
-include '../koneksi.php';
+include '../../koneksi.php';
 
 // Password akan diambil dari divisi
-$access_password = "skillmatrix123"; // Default password
 
 // Validasi parameter 
 if (!isset($_GET['skill_id']) || empty($_GET['skill_id'])) {
@@ -25,61 +24,6 @@ $cabang_id = isset($_GET['cabang_id']) ? intval($_GET['cabang_id']) : 0;
 
 // Variabel pencarian
 $search = isset($_GET['search']) ? trim($_GET['search']) : '';
-
-// Variabel untuk cek status otentikasi
-$authenticated = false;
-$auth_message = "";
-
-// PERUBAHAN: Ambil password dari divisi
-function getPasswordForDivisi($conn, $divisi_id)
-{
-    // Dalam implementasi nyata, query untuk mengambil password dari database
-    // Untuk contoh ini, gunakan password berdasarkan divisi_id
-    $query = $conn->prepare("SELECT password FROM divisi WHERE id_divisi = ?");
-    $query->bind_param("i", $divisi_id);
-    $query->execute();
-    $result = $query->get_result();
-
-    if ($result->num_rows > 0) {
-        $data = $result->fetch_assoc();
-        return $data['password'] ?? "skillmatrix123"; // Gunakan password dari divisi jika ada
-    }
-
-    return "skillmatrix123"; // Password default
-}
-
-// Handle form login password
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['password_submit'])) {
-    // PERUBAHAN: Verifikasi password menggunakan fungsi getPasswordForDivisi
-    $divisi_password = getPasswordForDivisi($conn, $divisi_id);
-
-    if ($_POST['password'] === $divisi_password) {
-        // Set session untuk autentikasi
-        session_start();
-        $_SESSION['authenticated'] = true;
-        $_SESSION['divisi_id'] = $divisi_id; // Simpan divisi_id dalam session
-        $authenticated = true;
-        $auth_message = "Autentikasi berhasil!";
-
-        // Jika ada redirect_staff_id, redirect ke edit_staff.php
-        if (isset($_POST['redirect_staff_id'])) {
-            $staff_id = intval($_POST['redirect_staff_id']);
-            header("Location: edit_staff.php?id_staff=$staff_id&skill_id=$skill_id&divisi_id=$divisi_id");
-            exit;
-        }
-    } else {
-        $auth_message = "Password salah, silakan coba lagi.";
-    }
-} else {
-    // Cek apakah sudah login sebelumnya dan divisi_id sama
-    session_start();
-    if (
-        isset($_SESSION['authenticated']) && $_SESSION['authenticated'] === true &&
-        isset($_SESSION['divisi_id']) && $_SESSION['divisi_id'] == $divisi_id
-    ) {
-        $authenticated = true;
-    }
-}
 
 // Ambil informasi skill dan divisi
 $infoQuery = $conn->prepare("
@@ -146,15 +90,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['tambah_staff']) && !e
     }
 }
 
-// Logout functionality
-if (isset($_GET['logout']) && $_GET['logout'] == 'true') {
-    session_start();
-    unset($_SESSION['authenticated']);
-    unset($_SESSION['divisi_id']);
-    session_destroy();
-    header("Location: " . $_SERVER['PHP_SELF'] . "?skill_id=" . $skill_id . "&divisi_id=" . $divisi_id . "&cabang_id=" . $cabang_id);
-    exit;
-}
 
 // Get staff count untuk skill ini
 $countQuery = $conn->prepare("SELECT COUNT(*) as total FROM staff WHERE id_skill = ? AND id_divisi = ?");
@@ -431,21 +366,6 @@ function getSkillMatrixDetails($conn, $staff_id, $skill_id)
                     </div>
                 </div>
 
-                <?php if ($authenticated): ?>
-                    <div
-                        class="bg-green-50 dark:bg-green-900/30 p-4 rounded-lg border border-green-100 dark:border-green-800/30">
-                        <div class="flex items-center text-green-800 dark:text-green-400">
-                            <i class="fas fa-check-circle mr-2"></i>
-                            <span class="font-medium">Autentikasi Aktif</span>
-                        </div>
-                        <div class="mt-2 flex justify-end">
-                            <a href="?skill_id=<?= $skill_id ?>&divisi_id=<?= $divisi_id ?>&cabang_id=<?= $cabang_id ?>&logout=true"
-                                class="text-red-600 hover:text-red-800 text-sm flex items-center">
-                                <i class="fas fa-sign-out-alt mr-1"></i> Logout
-                            </a>
-                        </div>
-                    </div>
-                <?php endif; ?>
 
                 <div class="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
                     <h3 class="text-sm uppercase text-gray-500 dark:text-gray-400 font-semibold mb-3">Navigasi Cepat
@@ -690,21 +610,10 @@ function getSkillMatrixDetails($conn, $staff_id, $skill_id)
                                             <td class="px-4 py-3 relative">
                                                 <div class="flex items-center space-x-2">
                                                     <!-- Tombol Edit Data di sebelah kiri -->
-                                                    <?php if ($authenticated): ?>
-                                                        <a href="edit_staff.php?id_staff=<?= $staff['id_staff'] ?>&skill_id=<?= $skill_id ?>&divisi_id=<?= $divisi_id ?>&cabang_id=<?= $cabang_id ?>"
-                                                            class="inline-flex items-center bg-blue-100 text-blue-600 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-400 dark:hover:bg-blue-800 text-sm font-medium px-3 py-1 rounded-lg z-[50] transition whitespace-nowrap">
-                                                            <i class="fas fa-edit mr-2"></i> Edit Data
-                                                        </a>
-                                                    <?php else: ?>
-                                                        <form method="POST" action="">
-                                                            <input type="hidden" name="redirect_staff_id"
-                                                                value="<?= $staff['id_staff'] ?>">
-                                                            <button type="button"
-                                                                class="auth-required inline-flex items-center bg-blue-100 text-blue-600 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-400 dark:hover:bg-blue-800 text-sm font-medium px-3 py-1 rounded-lg z-[50] transition whitespace-nowrap">
-                                                                <i class="fas fa-edit mr-2"></i> Edit Data
-                                                            </button>
-                                                        </form>
-                                                    <?php endif; ?>
+                                                    <a href="edit_staff.php?id_staff=<?= $staff['id_staff'] ?>&skill_id=<?= $skill_id ?>&divisi_id=<?= $divisi_id ?>&cabang_id=<?= $cabang_id ?>"
+                                                        class="inline-flex items-center bg-blue-100 text-blue-600 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-400 dark:hover:bg-blue-800 text-sm font-medium px-3 py-1 rounded-lg z-[50] transition whitespace-nowrap">
+                                                        <i class="fas fa-edit mr-2"></i> Edit Data
+                                                    </a>
 
                                                 </div>
                                             </td>
@@ -854,51 +763,6 @@ function getSkillMatrixDetails($conn, $staff_id, $skill_id)
         </main>
     </div>
 
-    <!-- Authentication Modal -->
-    <div id="authModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
-        <div class="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6 animate-fadeIn">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xl font-bold text-gray-800 dark:text-white">Otentikasi Diperlukan</h3>
-                <button id="closeAuthModal"
-                    class="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-
-            <p class="text-gray-600 dark:text-gray-300 mb-4">
-                Untuk melakukan operasi ini, silakan masukkan password divisi.
-            </p>
-
-            <form method="POST">
-                <input type="hidden" id="redirectStaffId" name="redirect_staff_id" value="">
-
-                <div class="mb-4">
-                    <label for="password" class="block text-gray-700 dark:text-gray-300 mb-2">Password:</label>
-                    <div class="relative">
-                        <span class="absolute inset-y-0 left-0 flex items-center pl-3">
-                            <i class="fas fa-lock text-gray-500 dark:text-gray-400"></i>
-                        </span>
-                        <input type="password" id="password" name="password" required
-                            class="pl-10 pr-4 py-2 w-full border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                    </div>
-                </div>
-
-                <?php if (!empty($auth_message)): ?>
-                    <div
-                        class="mb-4 p-3 rounded-lg <?= strpos($auth_message, "berhasil") !== false ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' ?>">
-                        <?= htmlspecialchars($auth_message) ?>
-                    </div>
-                <?php endif; ?>
-
-                <div class="flex justify-end">
-                    <button type="submit" name="password_submit"
-                        class="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition">
-                        <i class="fas fa-unlock mr-2"></i> Verifikasi
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
 
     <script>
         // Toggle mobile menu
@@ -918,34 +782,6 @@ function getSkillMatrixDetails($conn, $staff_id, $skill_id)
             (!localStorage.getItem('darkMode') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             document.documentElement.classList.add('dark');
         }
-
-        // Authentication modal handling
-        const authModal = document.getElementById('authModal');
-        const closeAuthModal = document.getElementById('closeAuthModal');
-        const authRequiredButtons = document.querySelectorAll('.auth-required');
-        const redirectStaffIdInput = document.getElementById('redirectStaffId');
-
-        authRequiredButtons.forEach(button => {
-            button.addEventListener('click', function () {
-                // If there's a hidden staff_id input in the form, get its value
-                const staffIdInput = this.closest('form')?.querySelector('input[name="redirect_staff_id"]');
-                if (staffIdInput) {
-                    redirectStaffIdInput.value = staffIdInput.value;
-                }
-                authModal.classList.remove('hidden');
-            });
-        });
-
-        closeAuthModal.addEventListener('click', function () {
-            authModal.classList.add('hidden');
-        });
-
-        // Hide modal when clicking outside
-        window.addEventListener('click', function (event) {
-            if (event.target === authModal) {
-                authModal.classList.add('hidden');
-            }
-        });
 
         document.addEventListener('DOMContentLoaded', function () {
             // Get all toggle buttons for skill details

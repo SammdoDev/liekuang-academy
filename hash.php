@@ -1,7 +1,7 @@
 <?php
 include 'koneksi.php';
 
-$username = 'irma';
+$username = 'agus';
 $plain_password = 'liekuang';
 
 // Hash password
