@@ -227,7 +227,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                 <i class="fas fa-tools"></i>
                             </span>
                             <input type="text" id="nama_skill" name="nama_skill"
-                                value="<?= htmlspecialchars(html_entity_decode($current_nama), ENT_QUOTES) ?>" required
+                                value="<?= html_entity_decode($current_nama), ENT_QUOTES ?>" required
                                 class="pl-10 py-4 block w-full border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
                                 placeholder="Masukkan nama skill">
                         </div>

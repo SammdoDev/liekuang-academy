@@ -203,7 +203,7 @@ $total_skills = $result->num_rows;
                             <div class="flex items-start justify-between">
                                 <div>
                                     <h2 class="text-xl font-semibold text-gray-800 dark:text-white">
-                                        <?= html_entity_decode(htmlspecialchars($skill['nama_skill'], ENT_NOQUOTES)) ?>
+                                        <?=html_entity_decode($skill['nama_skill'], ENT_NOQUOTES) ?>
                                     </h2>
                                     <div class="flex items-center mt-2">
                                         <span

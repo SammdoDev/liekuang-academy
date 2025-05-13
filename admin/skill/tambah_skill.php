@@ -1,10 +1,10 @@
 <?php
-include '../koneksi.php';
+include '../../koneksi.php';
 
 session_start();
 $role = $_SESSION['role'] ?? '';
-if ($role !== 'guru' && $role !== 'kasir') {
-    header("Location: ../unauthorized.php");
+if ($role !== 'admin') {
+    header("Location: ../../unauthorized.php");
     exit;
 }
 

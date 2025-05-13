@@ -1,6 +1,13 @@
 <?php
 include '../koneksi.php';
 
+session_start();
+$role = $_SESSION['role'] ?? '';
+if ($role !== 'guru' && $role !== 'kasir') {
+    header("Location: ../unauthorized.php");
+    exit;
+}
+
 // Function to sanitize input (assuming this is defined in koneksi.php but adding for completeness)
 if (!function_exists('sanitize_input')) {
     function sanitize_input($conn, $input)

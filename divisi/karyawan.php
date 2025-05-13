@@ -2,6 +2,12 @@
 include '../koneksi.php';
 include '../table.php';
 
+$role = $_SESSION['role'] ?? '';
+if ($role !== 'guru' && $role !== 'kasir') {
+    header("Location: ../unauthorized.php");
+    exit;
+}
+
 // Start session if not already started
 if (session_status() == PHP_SESSION_NONE) {
     session_start();

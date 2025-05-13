@@ -1,5 +1,12 @@
 <?php
 include '../koneksi.php';
+session_start();
+
+$role = $_SESSION['role'] ?? '';
+if ($role !== 'guru' && $role !== 'kasir') {
+    header("Location: ../unauthorized.php");
+    exit;
+}
 
 // Validasi parameter
 if (!isset($_GET['id']) || !isset($_GET['divisi_id'])) {

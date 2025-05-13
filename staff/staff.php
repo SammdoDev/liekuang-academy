@@ -2,7 +2,12 @@
 include '../koneksi.php';
 
 session_start();
-$role = $_SESSION['role'];
+
+$role = $_SESSION['role'] ?? '';
+if ($role !== 'guru' && $role !== 'kasir') {
+    header("Location: ../unauthorized.php");
+    exit;
+}
 $isKasir = ($role === 'kasir');
 
 // Password akan diambil dari divisi
@@ -482,9 +487,11 @@ function getSkillMatrixDetails($conn, $staff_id, $skill_id)
                 <div class="bg-primary-600 p-6 text-white">
                     <div class="flex flex-col md:flex-row md:items-center justify-between">
                         <div>
-                            <h1 class="text-2xl font-bold">Staff - <?= htmlspecialchars($nama_skill) ?></h1>
+                            <h1 class="text-2xl font-bold">Staff -
+                                <?= html_entity_decode($nama_skill, ENT_QUOTES, 'UTF-8') ?>
+                            </h1>
                             <p class="text-primary-100 mt-1">
-                                Mengelola data staff untuk skill <?= htmlspecialchars($nama_skill) ?> di divisi
+                                Mengelola data staff untuk skill <?= html_entity_decode($nama_skill, ENT_QUOTES, 'UTF-8') ?> di divisi
                                 <?= htmlspecialchars($nama_divisi) ?>
                             </p>
                         </div>

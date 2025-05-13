@@ -19,7 +19,7 @@ $role = $_SESSION['role'];
 $username = $_SESSION['username'];
 
 if ($role !== 'guru' && $role !== 'kasir') {
-    header("Location: ../../unauthorized.php");
+    header("Location: ../unauthorized.php");
     exit;
 }
 

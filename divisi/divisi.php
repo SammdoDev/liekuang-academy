@@ -2,29 +2,30 @@
 include '../koneksi.php';
 session_start();
 
-$role = $_SESSION['role'];
-$username = $_SESSION['username'];
 
+$username = $_SESSION['username'] ?? '';
+$user_id = $_SESSION['user_id'] ?? 0;
+
+$role = $_SESSION['role'] ?? '';
 if ($role !== 'guru' && $role !== 'kasir') {
-    header("Location: ../../unauthorized.php");
+    header("Location: ../unauthorized.php");
     exit;
 }
 
-// Cek apakah id_cabang tersedia
 if (!isset($_GET['cabang_id'])) {
     die("Cabang tidak ditemukan!");
 }
 
 $cabang_id = intval($_GET['cabang_id']);
 
-// Pastikan user punya akses ke cabang ini (dari session)
+// Cek akses cabang
 if (!isset($_SESSION['cabang_akses'][$cabang_id]) || $_SESSION['cabang_akses'][$cabang_id] !== true) {
     $_SESSION['error_message'] = "Anda belum memiliki akses ke cabang ini!";
     header("Location: ../cabang/cabang.php");
     exit();
 }
 
-// Ambil data cabang
+// Ambil nama cabang
 $queryCabang = $conn->prepare("SELECT nama_cabang FROM cabang WHERE id_cabang = ?");
 $queryCabang->bind_param("i", $cabang_id);
 $queryCabang->execute();
@@ -35,57 +36,49 @@ if (!$cabang) {
     die("Cabang tidak ditemukan!");
 }
 
-// Ambil data divisi untuk cabang ini
+// Ambil data divisi dalam cabang ini
 $queryDivisi = $conn->prepare("SELECT * FROM divisi WHERE id_cabang = ?");
 $queryDivisi->bind_param("i", $cabang_id);
 $queryDivisi->execute();
 $resultDivisi = $queryDivisi->get_result();
 $jumlahDivisi = $resultDivisi->num_rows;
 
-// Akses divisi yang telah diberikan (session)
+
+// Ambil akses divisi yang sudah diberikan
 $divisi_access = $_SESSION['divisi_access'] ?? [];
 
-// Determine user role from users table
-$user_role = $_SESSION['user_role'] ?? 'regular'; // Default as regular if not set
-
-// Get user id from session
-$user_id = $_SESSION['user_id'] ?? 0;
-
-// If user is logged in, get their role from database
-if ($user_id > 0) {
+// Ambil role dari database jika belum tersimpan
+$user_role = $_SESSION['user_role'] ?? 'regular';
+if ($user_id > 0 && empty($_SESSION['user_role'])) {
     $query = $conn->prepare("SELECT role FROM users WHERE id_user = ?");
     $query->bind_param("i", $user_id);
     $query->execute();
     $result = $query->get_result();
     if ($row = $result->fetch_assoc()) {
-        $user_role = $row['role']; // Update role from database
-        $_SESSION['user_role'] = $user_role; // Save to session
+        $user_role = $row['role'];
+        $_SESSION['user_role'] = $user_role;
     }
 }
 
-// Proses jika user mengisi password divisi
-$error_msg = "";
-$success_msg = "";
-
-// If admin, redirect directly to authorize.php for the requested division
+// Jika admin klik "authorize"
 if ($user_role === 'admin' && isset($_GET['authorize_divisi'])) {
     $divisi_id = intval($_GET['authorize_divisi']);
-    
-    // Add to divisi access and redirect to authorization page
     if (!in_array($divisi_id, $divisi_access)) {
         $divisi_access[] = $divisi_id;
         $_SESSION['divisi_access'] = $divisi_access;
     }
-    
     header("Location: ../skill/skill.php?divisi_id=" . $divisi_id);
     exit();
 }
 
-// Handle password verification (for teachers) or automatic access (for cashiers)
+// Proses kirim form
+$error_msg = "";
+$success_msg = "";
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['divisi_id'])) {
     $divisi_id = intval($_POST['divisi_id']);
-    
-    // For cashier role: automatically grant access without password
+
+    // Kasir langsung dapat akses
     if ($user_role === 'kasir') {
         if (!in_array($divisi_id, $divisi_access)) {
             $divisi_access[] = $divisi_id;
@@ -93,10 +86,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['divisi_id'])) {
         }
         $success_msg = "Akses divisi diberikan!";
     } 
-    // For teacher role: verify password
-    else if ($user_role === 'guru' && isset($_POST['password'])) {
+    // Guru harus input password
+    elseif ($user_role === 'guru' && isset($_POST['password'])) {
         $password = $_POST['password'];
-        
         $query = $conn->prepare("SELECT id_divisi FROM divisi WHERE id_divisi = ? AND password = ?");
         $query->bind_param("is", $divisi_id, $password);
         $query->execute();
@@ -114,6 +106,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['divisi_id'])) {
     }
 }
 ?>
+
 
 
 <!DOCTYPE html>

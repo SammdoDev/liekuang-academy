@@ -1,24 +1,25 @@
 <?php
 include '../koneksi.php';
-
 session_start();
-$role = $_SESSION['role'];
+
+$role = $_SESSION['role'] ?? '';
 $isKasir = ($role === 'kasir');
 
-// Pengecekan untuk memastikan hanya kasir dan guru yang bisa mengakses halaman ini
+// Hanya kasir dan guru yang boleh mengakses
 if ($role !== 'kasir' && $role !== 'guru') {
-    // Redirect ke halaman authorized.php jika role selain kasir dan guru
     header('Location: ../unauthorized.php');
     exit;
 }
 
+// Cek apakah divisi_id disediakan
 if (!isset($_GET['divisi_id'])) {
-    die("Divisi tidak ditemukan!");
+    header('Location: ../cabang/cabang.php');
+    exit;
 }
 
 $divisi_id = intval($_GET['divisi_id']);
 
-// Get the division name and branch info
+// Ambil data divisi dan cabang terkait
 $divisi_query = $conn->prepare("
     SELECT d.nama_divisi, c.nama_cabang, c.id_cabang
     FROM divisi d
@@ -35,16 +36,21 @@ if ($divisi_result->num_rows > 0) {
     $cabang_name = $divisi_data['nama_cabang'];
     $cabang_id = $divisi_data['id_cabang'];
 } else {
-    $divisi_name = 'Unknown Division';
-    $divisi_desc = '';
-    $cabang_name = 'Unknown Branch';
-    $cabang_id = 0;
+    header('Location: ../cabang/cabang.php');
+    exit;
 }
 
-// Modified query to remove average rating calculation
+// ✅ CEK AKSES DIVISI
+$divisi_access = $_SESSION['divisi_access'] ?? [];
+if (!in_array($divisi_id, $divisi_access)) {
+    $_SESSION['error_message'] = "Silakan masukkan password untuk mengakses divisi ini.";
+    header("Location: ../divisi/divisi.php?cabang_id=" . $cabang_id);
+    exit;
+}
+
+// Ambil data skill dan jumlah staff per skill
 $query = $conn->prepare("
-    SELECT s.*, 
-           COUNT(DISTINCT st.id_staff) as jumlah_staff
+    SELECT s.*, COUNT(DISTINCT st.id_staff) as jumlah_staff
     FROM skill s
     LEFT JOIN staff st ON s.id_skill = st.id_skill
     WHERE s.id_divisi = ?
@@ -54,7 +60,7 @@ $query->bind_param("i", $divisi_id);
 $query->execute();
 $result = $query->get_result();
 
-// Get the total staff count for this division
+// Hitung total staff dalam divisi
 $staff_count_query = $conn->prepare("
     SELECT COUNT(*) as total
     FROM staff
@@ -66,10 +72,10 @@ $staff_count_result = $staff_count_query->get_result();
 $staff_count_data = $staff_count_result->fetch_assoc();
 $total_staff = $staff_count_data['total'] ?? 0;
 
-// Count total skills
+// Hitung jumlah skill
 $total_skills = $result->num_rows;
-
 ?>
+
 
 
 <!DOCTYPE html>
@@ -222,7 +228,8 @@ $total_skills = $result->num_rows;
                                 <div class="dropdown relative">
                                     <button
                                         class="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
-                                        <?php if ($isKasir) 'style="display: none;"'; ?> <i class="fas fa-ellipsis-v"></i>
+                                        <?php if ($isKasir) echo 'style="display: none;"'; ?>>
+                                        <i class="fas fa-ellipsis-v"></i>
                                     </button>
                                     <div
                                         class="dropdown-menu hidden absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-10">
